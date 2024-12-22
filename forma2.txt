@@ -1,0 +1,474 @@
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel,
+    QTableWidget, QTableWidgetItem, QMessageBox, QLineEdit, QFormLayout, QStackedWidget
+)
+from PyQt6.QtCore import Qt
+import sys
+import mysql.connector
+
+# Подключение к базе данных
+conn = mysql.connector.connect(
+    host='localhost',
+    user='root',
+    database='Bus_Station'
+)
+cursor = conn.cursor()
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Управление автовокзалом")
+        self.setGeometry(100, 100, 800, 600)
+
+        # Создаем стек виджетов для переключения между окнами
+        self.stack = QStackedWidget()
+        self.setCentralWidget(self.stack)
+
+        # Главное меню
+        self.main_menu = QWidget()
+        self.main_layout = QVBoxLayout()
+        self.main_menu.setLayout(self.main_layout)
+
+        # Настройка фона, шрифта и кнопок
+        self.main_menu.setStyleSheet("""
+            QWidget {
+                background-color: #e0f7fa;
+                font-family: 'Roboto', sans-serif;
+                font-size: 16px;
+            }
+            QPushButton {
+                background-color: #0288d1;
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 14px;
+                margin: 10px;
+                transition: background-color 0.3s ease;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            QPushButton:hover {
+                background-color: #0277bd;
+            }
+            QPushButton:pressed {
+                background-color: #01579b;
+            }
+            QLabel {
+                font-size: 24px;
+                font-weight: bold;
+                color: #0288d1;
+                margin-bottom: 20px;
+                text-align: center;
+            }
+            QTableWidget {
+                background-color: #ffffff;
+                border: 1px solid #0288d1;
+                border-radius: 8px;
+                font-size: 14px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            QTableWidget::item {
+                padding: 8px;
+                text-align: center;
+            }
+            QTableWidget::horizontalHeader {
+                background-color: #f1f1f1;
+                font-weight: bold;
+            }
+            QTableWidget::verticalHeader {
+                background-color: #f1f1f1;
+            }
+            QLineEdit {
+                border: 2px solid #0288d1;
+                border-radius: 6px;
+                padding: 12px;
+                font-size: 16px;
+                margin-bottom: 20px;
+                transition: border-color 0.3s ease;
+            }
+            QLineEdit:focus {
+                border: 2px solid #0288d1;
+            }
+            QFormLayout {
+                margin-left: 50px;
+                margin-right: 50px;
+            }
+            QVBoxLayout {
+                spacing: 15px;
+            }
+        """)
+
+        # Кнопки главного меню
+        self.show_flights_btn = QPushButton("Просмотреть рейсы")
+        self.show_flights_btn.clicked.connect(self.show_flights)
+
+        self.show_stats_btn = QPushButton("Статистика")
+        self.show_stats_btn.clicked.connect(self.show_statistics)
+
+        self.add_flight_btn = QPushButton("Добавить рейс")
+        self.add_flight_btn.clicked.connect(self.add_flight_window)
+
+        self.add_bus_btn = QPushButton("Зарегистрировать автобус")
+        self.add_bus_btn.clicked.connect(self.add_bus_window)
+
+        self.main_layout.addWidget(self.show_flights_btn)
+        self.main_layout.addWidget(self.show_stats_btn)
+        self.main_layout.addWidget(self.add_flight_btn)
+        self.main_layout.addWidget(self.add_bus_btn)
+
+        # Добавляем главное меню в стек виджетов
+        self.stack.addWidget(self.main_menu)
+
+    # Переключение на главное меню
+    def back_to_main(self):
+        self.stack.setCurrentWidget(self.main_menu)
+
+    # Просмотр рейсов
+    def show_flights(self):
+        flights_window = QWidget()
+        layout = QVBoxLayout(flights_window)
+
+        label = QLabel("Список рейсов:")
+        label.setStyleSheet("font-size: 24px; font-weight: bold; color: #0288d1;")
+        layout.addWidget(label)
+
+        table = QTableWidget()
+        layout.addWidget(table)
+
+        # Настройка таблицы
+        table.setColumnCount(4)
+        table.setHorizontalHeaderLabels(["ID Рейса", "Станция", "Автобус", "Дата и время"])
+
+        # Получение данных из базы
+        query = """
+        SELECT flight.id_flight, stantion.name, CONCAT(bus.mark, ' (', bus.number, ')'), flight.datta_time
+        FROM flight
+        JOIN stantion ON flight.stntion_id = stantion.id_stantion
+        JOIN bus ON flight.bus_id = bus.id_bus
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        table.setRowCount(len(rows))
+        for row_idx, row_data in enumerate(rows):
+            for col_idx, col_data in enumerate(row_data):
+                table.setItem(row_idx, col_idx, QTableWidgetItem(str(col_data)))
+
+        # Кнопка для удаления рейса
+        delete_button = QPushButton("Удалить рейс")
+        delete_button.setStyleSheet("""
+            QPushButton {
+                background-color: #d32f2f;
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 12px;
+                margin: 10px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            QPushButton:hover {
+                background-color: #c62828;
+            }
+            QPushButton:pressed {
+                background-color: #b71c1c;
+            }
+        """)
+        delete_button.clicked.connect(lambda: self.delete_flight(table))
+        layout.addWidget(delete_button)
+
+        # Кнопка "Назад"
+        back_button = QPushButton("Назад")
+        back_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0288d1;
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 12px;
+            }
+            QPushButton:hover {
+                background-color: #0277bd;
+            }
+            QPushButton:pressed {
+                background-color: #01579b;
+            }
+        """)
+        back_button.clicked.connect(self.back_to_main)
+        layout.addWidget(back_button)
+
+        # Добавляем окно рейсов в стек и показываем его
+        self.stack.addWidget(flights_window)
+        self.stack.setCurrentWidget(flights_window)
+
+    # Удаление рейса
+    def delete_flight(self, table):
+        selected_row = table.currentRow()
+        if selected_row < 0:
+            QMessageBox.warning(self, "Ошибка", "Выберите рейс для удаления.")
+            return
+
+        flight_id = table.item(selected_row, 0).text()
+        confirm = QMessageBox.question(
+            self, "Подтверждение", f"Удалить рейс ID {flight_id}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if confirm == QMessageBox.StandardButton.Yes:
+            try:
+                cursor.execute("DELETE FROM flight WHERE id_flight = %s", (flight_id,))
+                conn.commit()
+                QMessageBox.information(self, "Успешно", "Рейс удалён.")
+                self.show_flights()
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка", f"Не удалось удалить рейс: {e}")
+
+    # Статистика
+    def show_statistics(self):
+        stats_window = QWidget()
+        layout = QVBoxLayout(stats_window)
+
+        # Заголовок
+        label = QLabel("Статистика:")
+        label.setStyleSheet("font-size: 24px; font-weight: bold; color: #0288d1; margin-bottom: 20px;")
+        layout.addWidget(label)
+
+        # Число рейсов на станциях
+        cursor.callproc("pr1")
+        station_stats = [result.fetchall() for result in cursor.stored_results()][0]
+
+        # Создаем таблицу для отображения числа рейсов на станциях
+        station_table = QTableWidget()
+        station_table.setColumnCount(2)
+        station_table.setHorizontalHeaderLabels(["Станция", "Число рейсов"])
+
+        # Заполнение таблицы данными
+        station_table.setRowCount(len(station_stats))
+        for row_idx, (name, count) in enumerate(station_stats):
+            station_table.setItem(row_idx, 0, QTableWidgetItem(str(name)))
+            station_table.setItem(row_idx, 1, QTableWidgetItem(str(count)))
+
+        # Добавляем таблицу на экран
+        layout.addWidget(station_table)
+
+        # Вызов второй процедуры pr2 для подсчета общего количества пассажиров
+        cursor.callproc("pr2")
+        passenger_count_result = [result.fetchall() for result in cursor.stored_results()][0]
+        total_passengers = passenger_count_result[0][0] if passenger_count_result else 0
+
+        # Отображаем общее количество пассажиров
+        passenger_label = QLabel(f"Общее количество пассажиров: {total_passengers}")
+        passenger_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #0288d1; margin-top: 20px;")
+        layout.addWidget(passenger_label)
+
+        # Кнопка "Назад"
+        back_button = QPushButton("Назад")
+        back_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0288d1;
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 12px;
+            }
+            QPushButton:hover {
+                background-color: #0277bd;
+            }
+            QPushButton:pressed {
+                background-color: #01579b;
+            }
+        """)
+        back_button.clicked.connect(self.back_to_main)
+        layout.addWidget(back_button)
+
+        # Добавляем статистику в стек и показываем её
+        self.stack.addWidget(stats_window)
+        self.stack.setCurrentWidget(stats_window)
+
+    # Добавление рейса
+    def add_flight_window(self):
+        add_flight_window = QWidget()
+        layout = QVBoxLayout(add_flight_window)
+
+        label = QLabel("Добавить рейс:")
+        label.setStyleSheet("font-size: 24px; font-weight: bold; color: #0288d1; margin-bottom: 20px;")
+        layout.addWidget(label)
+
+        form_layout = QFormLayout()
+
+        # Создаем поля для ввода
+        self.stantion_input = QLineEdit()
+        self.stantion_input.setPlaceholderText("Введите станцию")
+        self.bus_input = QLineEdit()
+        self.bus_input.setPlaceholderText("Введите автобус")
+        self.date_input = QLineEdit()
+        self.date_input.setPlaceholderText("Введите дату и время")
+
+        form_layout.addRow("Станция:", self.stantion_input)
+        form_layout.addRow("Автобус:", self.bus_input)
+        form_layout.addRow("Дата и время:", self.date_input)
+
+        layout.addLayout(form_layout)
+
+        # Кнопка добавления
+        add_button = QPushButton("Добавить рейс")
+        add_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0288d1;
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+                padding: 14px;
+                margin: 10px;
+                border-radius: 8px;
+                transition: background-color 0.3s ease;
+            }
+            QPushButton:hover {
+                background-color: #0277bd;
+            }
+            QPushButton:pressed {
+                background-color: #01579b;
+            }
+        """)
+        add_button.clicked.connect(self.add_flight)
+        layout.addWidget(add_button)
+
+        # Кнопка "Назад"
+        back_button = QPushButton("Назад")
+        back_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0288d1;
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 12px;
+            }
+            QPushButton:hover {
+                background-color: #0277bd;
+            }
+            QPushButton:pressed {
+                background-color: #01579b;
+            }
+        """)
+        back_button.clicked.connect(self.back_to_main)
+        layout.addWidget(back_button)
+
+        # Добавляем окно добавления рейса в стек
+        self.stack.addWidget(add_flight_window)
+        self.stack.setCurrentWidget(add_flight_window)
+
+    # Добавление рейса в базу данных
+    def add_flight(self):
+        stantion_name = self.stantion_input.text()
+        bus_name = self.bus_input.text()
+        date_time = self.date_input.text()
+
+        if not stantion_name or not bus_name or not date_time:
+            QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля!")
+            return
+
+        try:
+            query = """
+            INSERT INTO flight (stntion_id, bus_id, datta_time)
+            SELECT id_stantion, id_bus, %s
+            FROM stantion, bus
+            WHERE stantion.name = %s AND bus.mark = %s
+            """
+            cursor.execute(query, (date_time, stantion_name, bus_name))
+            conn.commit()
+            QMessageBox.information(self, "Успешно", "Рейс добавлен!")
+            self.show_flights()
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось добавить рейс: {e}")
+
+    # Добавление автобуса
+    def add_bus_window(self):
+        add_window_bus = QWidget()
+        layout = QVBoxLayout(add_window_bus)
+
+        label = QLabel("Зарегестрировать автобус")
+        layout.addWidget(label)
+
+        form_layout = QFormLayout()
+        self.bus_mark_input = QLineEdit()
+        self.bus_number_input = QLineEdit()
+        self.capacity_input = QLineEdit()
+
+        form_layout.addRow("Марка автобуса:", self.bus_mark_input)
+        form_layout.addRow("Номер автобуса:", self.bus_number_input)
+        form_layout.addRow("Вместимость автобуса", self.capacity_input)
+
+        layout.addLayout(form_layout)
+
+        # Добавляем окно добавления рейсов в стек и показываем его
+        self.stack.addWidget(add_window_bus)
+        self.stack.setCurrentWidget(add_window_bus)
+
+
+        layout.addLayout(form_layout)
+
+        # Кнопка добавления
+        add_button = QPushButton("Зарегистрировать автобус")
+        add_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0288d1;
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+                padding: 14px;
+                margin: 10px;
+                border-radius: 8px;
+                transition: background-color 0.3s ease;
+            }
+            QPushButton:hover {
+                background-color: #0277bd;
+            }
+            QPushButton:pressed {
+                background-color: #01579b;
+            }
+        """)
+        add_button.clicked.connect(self.add_bus)
+        layout.addWidget(add_button)
+
+        # Кнопка "Назад"
+        back_button = QPushButton("Назад")
+        back_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0288d1;
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 12px;
+            }
+            QPushButton:hover {
+                background-color: #0277bd;
+            }
+            QPushButton:pressed {
+                background-color: #01579b;
+            }
+        """)
+        back_button.clicked.connect(self.back_to_main)
+        layout.addWidget(back_button)
+
+    # Добавление автобуса в базу данных
+    def add_bus(self):
+        try:
+            bus_mark = self.bus_mark_input.text()
+            bus_num = self.bus_number_input.text()
+            bus_capacity = int(self.capacity_input.text())
+
+            query = "INSERT INTO bus (mark, number, сapacity) VALUES (%s, %s, %s)"
+            cursor.execute(query, (bus_mark, bus_num, bus_capacity))
+            conn.commit()
+            QMessageBox.information(self, "Успешно", "Автобус добавлен.")
+            self.back_to_main()
+        except ValueError:
+            QMessageBox.critical(self, "Ошибка", "Некорректный ввод данных.")
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось добавить автобус: {e}")
+
+
+# Запуск приложения
+app = QApplication(sys.argv)
+window = MainWindow()
+window.show()
+sys.exit(app.exec())

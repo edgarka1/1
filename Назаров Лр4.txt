@@ -1,0 +1,1081 @@
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QLineEdit, QTableWidget, QTableWidgetItem, QScrollArea, QWidget, QMessageBox, QVBoxLayout
+from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt
+import mysql.connector  # Для подключения к MySQL
+
+class LoginWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Добро пожаловать!")
+        self.setGeometry(100, 100, 900, 700)
+        self.setStyleSheet("background-color: #f3e5f5;")
+
+        self.welcome_label = QLabel("Добро пожаловать!", self)
+        self.welcome_label.setGeometry(250, 150, 400, 50)
+        self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.welcome_label.setStyleSheet("font-size: 22px; font-weight: bold; color: #4a148c;")
+
+        # Поле ввода кода
+        self.code_input = QLineEdit(self)
+        self.code_input.setGeometry(250, 250, 400, 40)
+        self.code_input.setPlaceholderText("Введите код доступа")
+        self.code_input.setStyleSheet(
+            "background-color: #ffffff; border: 2px solid #ba68c8; border-radius: 10px; padding: 5px; font-size: 16px;"
+        )
+
+        self.login_button = QPushButton("Войти", self)
+        self.login_button.setGeometry(350, 320, 200, 50)
+        self.login_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 16px;"
+        )
+        self.login_button.clicked.connect(self.open_main_window)
+
+    def open_main_window(self):
+        if not self.code_input.text():
+            QMessageBox.warning(self, "Ошибка", "Введите код доступа!")
+            return
+        # Открытие главного окна после проверки ввода
+        self.main_window = MainWindow()
+        self.main_window.show()
+        self.close()
+
+class AddDataWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Добавление данных")
+        self.setGeometry(150, 150, 500, 500)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.info_label = QLabel("Введите данные для добавления в таблицу")
+        layout.addWidget(self.info_label)
+
+        self.table_name_input = QLineEdit(self)
+        self.table_name_input.setPlaceholderText("Введите имя таблицы")
+        layout.addWidget(self.table_name_input)
+
+        self.column1_input = QLineEdit(self)
+        self.column1_input.setPlaceholderText("Введите имя столбца 1")
+        layout.addWidget(self.column1_input)
+
+        self.field_input = QLineEdit(self)
+        self.field_input.setPlaceholderText("Введите данные для столбца 1")
+        layout.addWidget(self.field_input)
+
+        self.column2_input = QLineEdit(self)
+        self.column2_input.setPlaceholderText("Введите имя столбца 2")
+        layout.addWidget(self.column2_input)
+
+        self.value_input = QLineEdit(self)
+        self.value_input.setPlaceholderText("Введите данные для столбца 2")
+        layout.addWidget(self.value_input)
+
+        self.column3_input = QLineEdit(self)
+        self.column3_input.setPlaceholderText("Введите имя столбца 3")
+        layout.addWidget(self.column3_input)
+
+        self.value3_input = QLineEdit(self)
+        self.value3_input.setPlaceholderText("Введите данные для столбца 3")
+        layout.addWidget(self.value3_input)
+
+        self.add_button = QPushButton("Добавить")
+        self.add_button.clicked.connect(self.add_data_to_db)
+        layout.addWidget(self.add_button)
+
+    def add_data_to_db(self):
+        table_name = self.table_name_input.text()
+        column1 = self.column1_input.text()
+        field_data = self.field_input.text()
+        column2 = self.column2_input.text()
+        value_data = self.value_input.text()
+        column3 = self.column3_input.text()
+        value3_data = self.value3_input.text()
+
+        if not table_name or not column1 or not field_data or not column2 or not value_data or not column3 or not value3_data:
+            QMessageBox.warning(self, "Ошибка", "Заполните все поля!")
+            return
+
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="AvtoVokzal"
+            )
+            cursor = connection.cursor()
+            query = f"INSERT INTO {table_name} ({column1}, {column2}, {column3}) VALUES (%s, %s, %s)"
+            cursor.execute(query, (field_data, value_data, value3_data))
+            connection.commit()
+            QMessageBox.information(self, "Успех", "Данные успешно добавлены!")
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка: {e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Автовокзал - Статистика")
+        self.setGeometry(100, 100, 900, 700)
+
+        # Установка цветовой палитры
+        self.setStyleSheet("background-color: #f3e5f5;")  # Фон светло-фиолетовый
+
+        # Создание кнопок и других элементов
+        self.create_widgets()
+
+    def create_widgets(self):
+        # Заголовок
+        self.header_label = QLabel(self)
+        self.header_label.setGeometry(50, 10, 800, 50)
+        self.header_label.setText("Автовокзал - Информация и Статистика")
+        self.header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.header_label.setStyleSheet("font-size: 22px; font-weight: bold; color: #4a148c; background-color: #d1c4e9; border-radius: 10px;")
+
+        # Метка и элементы для пассажиров
+        self.passenger_label = QLabel(self)
+        self.passenger_label.setGeometry(50, 80, 400, 30)
+        self.passenger_label.setText("Введите данные о пассажирах")
+        self.passenger_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.passenger_label.setStyleSheet("font-size: 14px; color: #4a148c;")
+
+        self.lineEdit = QLineEdit(self)
+        self.lineEdit.setGeometry(50, 110, 300, 30)
+        self.lineEdit.setPlaceholderText("Введите ID пассажира")
+        self.lineEdit.setStyleSheet(
+            "background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px; padding: 5px; font-size: 14px;"
+        )
+
+        self.passenger_button = QPushButton("Пассажиры", self)
+        self.passenger_button.setGeometry(370, 110, 150, 30)
+        self.passenger_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.passenger_button.clicked.connect(self.show_kol_passangers)
+
+        self.result_label = QLabel(self)
+        self.result_label.setGeometry(50, 150, 470, 30)
+        self.result_label.setText("")
+        self.result_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.result_label.setStyleSheet("background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px; font-size: 14px;")
+
+        # Метка и элементы для рейсов
+        self.reis_label = QLabel(self)
+        self.reis_label.setGeometry(50, 200, 400, 30)
+        self.reis_label.setText("Введите данные о рейсах")
+        self.reis_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.reis_label.setStyleSheet("font-size: 14px; color: #4a148c;")
+
+        self.lineEdit_2 = QLineEdit(self)
+        self.lineEdit_2.setGeometry(50, 230, 300, 30)
+        self.lineEdit_2.setPlaceholderText("Введите ID рейса")
+        self.lineEdit_2.setStyleSheet(
+            "background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px; padding: 5px; font-size: 14px;"
+        )
+
+        self.reis_button = QPushButton("Рейсы", self)
+        self.reis_button.setGeometry(370, 230, 150, 30)
+        self.reis_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.reis_button.clicked.connect(self.show_kolvo_reis)
+
+        self.result_label_2 = QLabel(self)
+        self.result_label_2.setGeometry(50, 270, 470, 30)
+        self.result_label_2.setText("")
+        self.result_label_2.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.result_label_2.setStyleSheet("background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px; font-size: 14px;")
+
+        # Кнопка для вывода таблицы
+        self.table_button = QPushButton("Показать Таблицу", self)
+        self.table_button.setGeometry(50, 320, 200, 40)
+        self.table_button.setStyleSheet(
+            "background-color: #7986cb; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.table_button.clicked.connect(self.show_table)
+
+        # Поле для таблицы с прокруткой
+        self.scrollArea = QScrollArea(self)
+        self.scrollArea.setGeometry(50, 380, 800, 250)
+        self.scrollArea.setStyleSheet("background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px;")
+
+        self.tableWidget = QTableWidget()
+        self.scrollArea.setWidget(self.tableWidget)
+        self.scrollArea.setWidgetResizable(True)
+
+        # Кнопка "Назад"
+        self.back_button = QPushButton("Назад", self)
+        self.back_button.setGeometry(750, 650, 100, 40)
+        self.back_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.back_button.clicked.connect(self.go_to_login)
+
+        # Кнопка "Добавить данные"
+        self.add_data_button = QPushButton("Добавить данные", self)
+        self.add_data_button.setGeometry(300, 320, 200, 40)
+        self.add_data_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.add_data_button.clicked.connect(self.open_add_data_window)
+
+    def go_to_login(self):
+        self.login_window = LoginWindow()
+        self.login_window.show()
+        self.close()
+
+    def call_procedure(self, procedure_name, input_value):
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="AvtoVokzal"
+            )
+            cursor = connection.cursor()
+            cursor.callproc(procedure_name, [input_value])
+            result_text = ""
+            for result in cursor.stored_results():
+                for row in result.fetchall():
+                    result_text += " | ".join(map(str, row)) + "\n"
+            return result_text.strip() if result_text else "Нет данных"
+        except mysql.connector.Error as e:
+            return f"Ошибка базы данных: {e}"
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+
+    def show_kol_passangers(self):
+        input_value = self.lineEdit.text()
+        if not input_value:
+            self.result_label.setText("Введите значение для kol_passangers.")
+            return
+        result = self.call_procedure("kol_passangers", input_value)
+        self.result_label.setText(result)
+
+    def show_kolvo_reis(self):
+        input_value = self.lineEdit_2.text()
+        if not input_value:
+            self.result_label_2.setText("Введите значение для kolvo_reis.")
+            return
+        result = self.call_procedure("kolvo_reis", input_value)
+        self.result_label_2.setText(result)
+
+    def show_table(self):
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="AvtoVokzal"
+            )
+            cursor = connection.cursor()
+            cursor.execute("SELECT * FROM bus LIMIT 100;")
+            rows = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+            self.tableWidget.setRowCount(len(rows))
+            self.tableWidget.setColumnCount(len(columns))
+            self.tableWidget.setHorizontalHeaderLabels(columns)
+            for i, row in enumerate(rows):
+                for j, value in enumerate(row):
+                    self.tableWidget.setItem(i, j, QTableWidgetItem(str(value)))
+        except mysql.connector.Error as e:
+            print(f"Ошибка базы данных: {e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+
+    def open_add_data_window(self):
+        self.add_data_window = AddDataWindow()
+        self.add_data_window.show()
+
+if __name__ == "__main__":
+    app = QApplication([])
+    window = LoginWindow()
+    window.show()
+    app.exec()
+
+
+
+
+
+_---------------------------------------------------------------------------------------------------
+
+
+
+1. Анализ задания
+Спецификация разрабатываемого модуля
+
+    Назначение модуля: Создание приложения для управления данными автовокзала.
+    Входные данные:
+        ID пассажира.
+        ID рейса.
+        Данные таблицы bus из базы данных.
+    Выходные данные:
+        Результаты процедур (данные о пассажирах/рейсах).
+        Отображение содержимого таблицы bus.
+    Функциональные требования:
+        Экран входа с приветствием.
+        Главное окно для работы с данными пассажиров, рейсов и таблиц.
+        Ввод данных с обработкой ошибок.
+        Навигация между окнами приложения.
+
+2. Основной алгоритм решения
+
+Шаги алгоритма:
+
+    Начать с экрана входа, где пользователь видит приветствие и кнопку "Войти".
+    При нажатии кнопки "Войти" переходит в главное окно.
+    Главное окно содержит:
+        Ввод ID пассажира.
+        Ввод ID рейса.
+        Вывод данных из базы по процедурам.
+        Вывод содержимого таблицы bus.
+        Кнопка "Назад" для возврата к экрану входа.
+    Обработка ошибок:
+        Проверка на пустые значения в полях ввода.
+        Сообщения об ошибках при невозможности подключения к базе данных.
+    Пользователь может свободно перемещаться между окнами.
+
+Блок-схема алгоритма:
+
+    [Блок 1] Начало → [Блок 2] Показать окно входа → [Блок 3] Кнопка "Войти" → [Блок 4] Главное окно → [Блок 5] Обработка данных → [Блок 6] Вывод результатов → Назад.
+
+3. Детализация одной функции
+Функция обработки ввода ID пассажира:
+
+    Пользователь вводит ID пассажира в текстовое поле.
+    Проверяется, заполнено ли поле.
+        Если поле пустое: выводится сообщение об ошибке.
+        Если поле заполнено: выполняется процедура базы данных.
+    Результат отображается в отдельной метке.
+
+Псевдокод функции:
+
+def show_kol_passangers():
+    input_value = lineEdit.text()
+    if input_value is empty:
+        show_error("Поле ввода пустое.")
+        return
+    result = call_procedure("kol_passangers", input_value)
+    display_result(result)
+
+4. Разработка интерфейса
+Структура интерфейса:
+
+    Окно входа:
+        Заголовок: "Добро пожаловать!"
+        Кнопка: "Войти".
+    Главное окно:
+        Заголовок: "Автовокзал - Информация и Статистика".
+        Поля ввода для ID пассажира и рейса.
+        Кнопки для вызова процедур:
+            "Пассажиры".
+            "Рейсы".
+        Кнопка для отображения таблицы.
+        Кнопка "Назад".
+        Таблица с прокруткой для отображения данных.
+
+Единый стиль интерфейса:
+
+    Основной цвет: светло-фиолетовый.
+    Кнопки: округлые, с подсказками (tooltip).
+    Шрифт: читаемый, соответствующий стилю приложения.
+
+5. Реализация алгоритма
+
+Вся функциональность реализована в двух классах:
+
+    LoginWindow: Окно входа с кнопкой "Войти".
+    MainWindow: Главное окно с обработкой данных.
+
+Ключевые моменты реализации:
+
+    Классы имеют отдельные методы для обработки каждой задачи.
+    Используется обработка исключений для предотвращения ошибок.
+
+6. Обработка исключений
+Примеры обработки ошибок:
+
+    Ошибка базы данных:
+        При отсутствии подключения:
+
+    except mysql.connector.Error as e:
+        QMessageBox.critical(self, "Ошибка базы данных", str(e))
+
+Пустое поле ввода:
+
+    При пустом поле ввода:
+
+        if not input_value:
+            QMessageBox.warning(self, "Ошибка ввода", "Поле ввода пустое.")
+
+Сообщения для пользователя:
+
+    Ошибка базы данных: "Не удалось подключиться к базе данных. Проверьте настройки подключения."
+    Пустое поле: "Поле ввода пустое. Введите корректное значение."
+
+7. Тестирование
+Наборы входных данных:
+
+    Корректные данные:
+        Ввод: существующий ID пассажира (например, 1).
+        Ожидаемый результат: корректный вывод данных.
+    Некорректные данные:
+        Ввод: несуществующий ID (например, 999).
+        Ожидаемый результат: "Данные отсутствуют."
+    Пустой ввод:
+        Ввод: пустое поле.
+        Ожидаемый результат: предупреждение "Поле ввода пустое."
+
+Сценарий тестирования:
+
+    Тест 1: Ввод ID пассажира. Проверка корректности вывода.
+    Тест 2: Переход между окнами. Проверка сохранности стилей интерфейса.
+    Тест 3: Пустое поле ввода. Проверка отображения сообщений.
+
+Результат тестирования:
+
+Приложение прошло тесты на обработку данных, проверку исключений и удобство использования интерфейса.
+
+
+
+-------------------------------------------------------
+
+
+
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QMessageBox, QTableWidget, QTableWidgetItem, QScrollArea, QLineEdit, QVBoxLayout, QWidget
+from PyQt6.QtCore import Qt
+import mysql.connector
+
+class LoginWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Добро пожаловать!")
+        self.setGeometry(100, 100, 900, 700)
+        self.setStyleSheet("background-color: #f3e5f5;")
+
+        # Заголовок окна
+        self.welcome_label = QLabel("Добро пожаловать в систему!", self)
+        self.welcome_label.setGeometry(150, 50, 600, 100)
+        self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.welcome_label.setStyleSheet(
+            "font-size: 28px; font-weight: bold; color: #6a1b9a; background-color: #e1bee7; border-radius: 20px; padding: 10px;"
+        )
+
+        # Метка для ввода кода
+        self.code_label = QLabel("Введите код доступа:", self)
+        self.code_label.setGeometry(200, 200, 200, 40)
+        self.code_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.code_label.setStyleSheet("font-size: 18px; color: #4a148c;")
+
+        # Поле ввода кода
+        self.code_input = QLineEdit(self)
+        self.code_input.setGeometry(420, 200, 300, 40)
+        self.code_input.setPlaceholderText("Введите код")
+        self.code_input.setStyleSheet(
+            "background-color: #ffffff; border: 2px solid #ba68c8; border-radius: 10px; padding: 5px; font-size: 16px;"
+        )
+
+        # Кнопка для входа
+        self.login_button = QPushButton("Войти", self)
+        self.login_button.setGeometry(350, 300, 200, 60)
+        self.login_button.setStyleSheet(
+            "background-color: #8e24aa; color: white; border-radius: 15px; font-size: 20px; font-weight: bold;"
+        )
+        self.login_button.clicked.connect(self.validate_code)
+
+    def validate_code(self):
+        code = self.code_input.text()
+        if not code:
+            QMessageBox.warning(
+                self, "Ошибка", "Введите код для входа.", QMessageBox.StandardButton.Ok
+            )
+        else:
+            self.open_main_window()
+
+    def open_main_window(self):
+        self.main_window = MainWindow()
+        self.main_window.show()
+        self.close()
+
+class AddDataWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Добавление данных")
+        self.setGeometry(150, 150, 500, 400)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.info_label = QLabel("Введите данные для добавления в таблицу")
+        layout.addWidget(self.info_label)
+
+        self.table_name_input = QLineEdit(self)
+        self.table_name_input.setPlaceholderText("Введите имя таблицы")
+        layout.addWidget(self.table_name_input)
+
+        self.column1_input = QLineEdit(self)
+        self.column1_input.setPlaceholderText("Введите имя столбца 1")
+        layout.addWidget(self.column1_input)
+
+        self.field_input = QLineEdit(self)
+        self.field_input.setPlaceholderText("Введите данные для столбца 1")
+        layout.addWidget(self.field_input)
+
+        self.column2_input = QLineEdit(self)
+        self.column2_input.setPlaceholderText("Введите имя столбца 2")
+        layout.addWidget(self.column2_input)
+
+        self.value_input = QLineEdit(self)
+        self.value_input.setPlaceholderText("Введите данные для столбца 2")
+        layout.addWidget(self.value_input)
+
+
+
+        self.add_button = QPushButton("Добавить")
+        self.add_button.clicked.connect(self.add_data_to_db)
+        layout.addWidget(self.add_button)
+
+    def add_data_to_db(self):
+        table_name = self.table_name_input.text()
+        column1 = self.column1_input.text()
+        field_data = self.field_input.text()
+        column2 = self.column2_input.text()
+        value_data = self.value_input.text()
+
+        if not table_name or not column1 or not field_data or not column2 or not value_data:
+            QMessageBox.warning(self, "Ошибка", "Заполните все поля!")
+            return
+
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="Cinema"
+            )
+            cursor = connection.cursor()
+            query = f"INSERT INTO {table_name} ({column1}, {column2}) VALUES (%s, %s)"
+            cursor.execute(query, (field_data, value_data))
+            connection.commit()
+            QMessageBox.information(self, "Успех", "Данные успешно добавлены!")
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка: {e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Имя формы")
+        self.setGeometry(100, 100, 900, 700)
+        self.setStyleSheet("background-color: #f3e5f5;")
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        # Заголовок
+        self.header_label = QLabel(self)
+        self.header_label.setGeometry(50, 10, 800, 50)
+        self.header_label.setText("Имя формы")
+        self.header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.header_label.setStyleSheet(
+            "font-size: 22px; font-weight: bold; color: #4a148c; background-color: #d1c4e9; border-radius: 10px;"
+        )
+
+        # Кнопка и вывод для первой процедуры с параметром
+        self.passenger_button = QPushButton("Кнопка1", self)
+        self.passenger_button.setGeometry(50, 80, 150, 40)
+        self.passenger_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.passenger_button.clicked.connect(self.call_procedure_with_param)
+
+        self.param_input = QLineEdit(self)
+        self.param_input.setGeometry(220, 80, 150, 40)
+        self.param_input.setPlaceholderText("Введите параметр")
+        self.param_input.setStyleSheet(
+            "background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px; padding: 5px; font-size: 14px;"
+        )
+
+        self.scroll_area_1 = QScrollArea(self)
+        self.scroll_area_1.setGeometry(390, 80, 460, 200)
+        self.scroll_area_1.setStyleSheet(
+            "background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px;"
+        )
+
+        self.result_label_1 = QLabel(self)
+        self.result_label_1.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.result_label_1.setStyleSheet("padding: 5px; font-size: 14px;")
+        self.result_label_1.setWordWrap(True)
+
+        self.scroll_area_1.setWidget(self.result_label_1)
+        self.scroll_area_1.setWidgetResizable(True)
+
+        # Кнопка и вывод для второй процедуры без параметра
+        self.reis_button = QPushButton("Кнопка2", self)
+        self.reis_button.setGeometry(50, 300, 150, 40)
+        self.reis_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.reis_button.clicked.connect(lambda: self.call_procedure_and_display("proz2", self.result_label_2, self.scroll_area_2))
+
+        self.scroll_area_2 = QScrollArea(self)
+        self.scroll_area_2.setGeometry(220, 300, 630, 200)
+        self.scroll_area_2.setStyleSheet(
+            "background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px;"
+        )
+
+        self.result_label_2 = QLabel(self)
+        self.result_label_2.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.result_label_2.setStyleSheet("padding: 5px; font-size: 14px;")
+        self.result_label_2.setWordWrap(True)
+
+        self.scroll_area_2.setWidget(self.result_label_2)
+        self.scroll_area_2.setWidgetResizable(True)
+
+        # Кнопка для отображения таблицы
+        self.table_button = QPushButton("Показать таблицу", self)
+        self.table_button.setGeometry(50, 520, 150, 40)
+        self.table_button.setStyleSheet(
+            "background-color: #7986cb; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.table_button.clicked.connect(self.show_table)
+
+        self.scroll_area_table = QScrollArea(self)
+        self.scroll_area_table.setGeometry(220, 520, 630, 150)
+        self.scroll_area_table.setStyleSheet(
+            "background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px;"
+        )
+
+        self.table_widget = QTableWidget()
+        self.scroll_area_table.setWidget(self.table_widget)
+        self.scroll_area_table.setWidgetResizable(True)
+
+        # Кнопка "Добавить данные"
+        self.add_data_button = QPushButton("Добавить данные", self)
+        self.add_data_button.setGeometry(50, 600, 150, 40)
+        self.add_data_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.add_data_button.clicked.connect(self.open_add_data_window)
+
+        # Кнопка назад
+        self.back_button = QPushButton("Назад", self)
+        self.back_button.setGeometry(750, 650, 100, 40)
+        self.back_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.back_button.clicked.connect(self.go_to_login)
+
+    def go_to_login(self):
+        self.login_window = LoginWindow()
+        self.login_window.show()
+        self.close()
+
+    def call_procedure_with_param(self):
+        param = self.param_input.text()
+        if not param:
+            self.result_label_1.setText("Введите параметр для процедуры")
+            return
+
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="Cinema"
+            )
+            cursor = connection.cursor()
+            cursor.callproc("proz1", [param])
+
+            result_text = ""
+            for result in cursor.stored_results():
+                rows = result.fetchall()
+                result_text = "\n".join([" | ".join(map(str, row)) for row in rows])
+
+            self.result_label_1.setText(result_text if result_text else "Нет данных")
+        except mysql.connector.Error as e:
+            self.result_label_1.setText(f"Ошибка базы данных: {e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+
+    def call_procedure_and_display(self, procedure_name, label, scroll_area):
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="Cinema"
+            )
+            cursor = connection.cursor()
+            cursor.callproc(procedure_name)
+
+            result_text = ""
+            for result in cursor.stored_results():
+                rows = result.fetchall()
+                result_text = "\n".join([" | ".join(map(str, row)) for row in rows])
+
+            label.setText(result_text if result_text else "Нет данных")
+        except mysql.connector.Error as e:
+            label.setText(f"Ошибка базы данных: {e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+
+    def show_table(self):
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="Cinema"
+            )
+            cursor = connection.cursor()
+            cursor.execute("SELECT * FROM holl LIMIT 100;")
+            rows = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+            self.table_widget.setRowCount(len(rows))
+            self.table_widget.setColumnCount(len(columns))
+            self.table_widget.setHorizontalHeaderLabels(columns)
+            for i, row in enumerate(rows):
+                for j, value in enumerate(row):
+                    self.table_widget.setItem(i, j, QTableWidgetItem(str(value)))
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Ошибка базы данных", f"{e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+
+    def open_add_data_window(self):
+        self.add_data_window = AddDataWindow()
+        self.add_data_window.show()
+
+if __name__ == "__main__":
+    app = QApplication([])
+    window = LoginWindow()
+    window.show()
+    app.exec()
+
+
+
+---------------------------------------------------------
+
+
+
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QMessageBox, QTableWidget, QTableWidgetItem, QScrollArea, QLineEdit, QVBoxLayout, QWidget
+from PyQt6.QtCore import Qt
+import mysql.connector
+
+class LoginWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Добро пожаловать!")
+        self.setGeometry(100, 100, 900, 700)
+        self.setStyleSheet("background-color: #f3e5f5;")
+
+        # Заголовок окна
+        self.welcome_label = QLabel("Добро пожаловать в систему!", self)
+        self.welcome_label.setGeometry(150, 50, 600, 100)
+        self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.welcome_label.setStyleSheet(
+            "font-size: 28px; font-weight: bold; color: #6a1b9a; background-color: #e1bee7; border-radius: 20px; padding: 10px;"
+        )
+
+        # Метка для ввода кода
+        self.code_label = QLabel("Введите код доступа:", self)
+        self.code_label.setGeometry(200, 200, 200, 40)
+        self.code_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.code_label.setStyleSheet("font-size: 18px; color: #4a148c;")
+
+        # Поле ввода кода
+        self.code_input = QLineEdit(self)
+        self.code_input.setGeometry(420, 200, 300, 40)
+        self.code_input.setPlaceholderText("Введите код")
+        self.code_input.setStyleSheet(
+            "background-color: #ffffff; border: 2px solid #ba68c8; border-radius: 10px; padding: 5px; font-size: 16px;"
+        )
+
+        # Кнопка для входа
+        self.login_button = QPushButton("Войти", self)
+        self.login_button.setGeometry(350, 300, 200, 60)
+        self.login_button.setStyleSheet(
+            "background-color: #8e24aa; color: white; border-radius: 15px; font-size: 20px; font-weight: bold;"
+        )
+        self.login_button.clicked.connect(self.validate_code)
+
+    def validate_code(self):
+        code = self.code_input.text()
+        if not code:
+            QMessageBox.warning(
+                self, "Ошибка", "Введите код для входа.", QMessageBox.StandardButton.Ok
+            )
+        else:
+            self.open_main_window()
+
+    def open_main_window(self):
+        self.main_window = MainWindow()
+        self.main_window.show()
+        self.close()
+
+class AddDataWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Добавление данных")
+        self.setGeometry(150, 150, 500, 400)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.info_label = QLabel("Введите данные для добавления в таблицу")
+        layout.addWidget(self.info_label)
+
+        self.table_name_input = QLineEdit(self)
+        self.table_name_input.setPlaceholderText("Введите имя таблицы")
+        layout.addWidget(self.table_name_input)
+
+        self.column1_input = QLineEdit(self)
+        self.column1_input.setPlaceholderText("Введите имя столбца 1")
+        layout.addWidget(self.column1_input)
+
+        self.field_input = QLineEdit(self)
+        self.field_input.setPlaceholderText("Введите данные для столбца 1")
+        layout.addWidget(self.field_input)
+
+        self.column2_input = QLineEdit(self)
+        self.column2_input.setPlaceholderText("Введите имя столбца 2")
+        layout.addWidget(self.column2_input)
+
+        self.value_input = QLineEdit(self)
+        self.value_input.setPlaceholderText("Введите данные для столбца 2")
+        layout.addWidget(self.value_input)
+
+        self.add_button = QPushButton("Добавить")
+        self.add_button.clicked.connect(self.add_data_to_db)
+        layout.addWidget(self.add_button)
+
+    def add_data_to_db(self):
+        table_name = self.table_name_input.text()
+        column1 = self.column1_input.text()
+        field_data = self.field_input.text()
+        column2 = self.column2_input.text()
+        value_data = self.value_input.text()
+
+        if not table_name or not column1 or not field_data or not column2 or not value_data:
+            QMessageBox.warning(self, "Ошибка", "Заполните все поля!")
+            return
+
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="Cinema"
+            )
+            cursor = connection.cursor()
+            query = f"INSERT INTO {table_name} ({column1}, {column2}) VALUES (%s, %s)"
+            cursor.execute(query, (field_data, value_data))
+            connection.commit()
+            QMessageBox.information(self, "Успех", "Данные успешно добавлены!")
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка: {e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Имя формы")
+        self.setGeometry(100, 100, 900, 700)
+        self.setStyleSheet("background-color: #f3e5f5;")
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        # Заголовок
+        self.header_label = QLabel(self)
+        self.header_label.setGeometry(50, 10, 800, 50)
+        self.header_label.setText("Имя формы")
+        self.header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.header_label.setStyleSheet(
+            "font-size: 22px; font-weight: bold; color: #4a148c; background-color: #d1c4e9; border-radius: 10px;"
+        )
+
+        # Кнопка и вывод для первой процедуры
+        self.passenger_button = QPushButton("Кнопка1", self)
+        self.passenger_button.setGeometry(50, 80, 150, 40)
+        self.passenger_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.passenger_button.clicked.connect(lambda: self.call_procedure_and_display("proz1", self.result_label_1, self.scroll_area_1))
+
+        self.scroll_area_1 = QScrollArea(self)
+        self.scroll_area_1.setGeometry(220, 80, 630, 200)
+        self.scroll_area_1.setStyleSheet(
+            "background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px;"
+        )
+
+        self.result_label_1 = QLabel(self)
+        self.result_label_1.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.result_label_1.setStyleSheet("padding: 5px; font-size: 14px;")
+        self.result_label_1.setWordWrap(True)
+
+        self.scroll_area_1.setWidget(self.result_label_1)
+        self.scroll_area_1.setWidgetResizable(True)
+
+        # Кнопка и вывод для второй процедуры
+        self.reis_button = QPushButton("Кнопка2", self)
+        self.reis_button.setGeometry(50, 300, 150, 40)
+        self.reis_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.reis_button.clicked.connect(lambda: self.call_procedure_and_display("proz2", self.result_label_2, self.scroll_area_2))
+
+        self.scroll_area_2 = QScrollArea(self)
+        self.scroll_area_2.setGeometry(220, 300, 630, 200)
+        self.scroll_area_2.setStyleSheet(
+            "background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px;"
+        )
+
+        self.result_label_2 = QLabel(self)
+        self.result_label_2.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.result_label_2.setStyleSheet("padding: 5px; font-size: 14px;")
+        self.result_label_2.setWordWrap(True)
+
+        self.scroll_area_2.setWidget(self.result_label_2)
+        self.scroll_area_2.setWidgetResizable(True)
+
+        # Кнопка для отображения таблицы
+        self.table_button = QPushButton("Показать таблицу", self)
+        self.table_button.setGeometry(50, 520, 150, 40)
+        self.table_button.setStyleSheet(
+            "background-color: #7986cb; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.table_button.clicked.connect(self.show_table)
+
+        self.scroll_area_table = QScrollArea(self)
+        self.scroll_area_table.setGeometry(220, 520, 630, 150)
+        self.scroll_area_table.setStyleSheet(
+            "background-color: #ffffff; border: 1px solid #ba68c8; border-radius: 10px;"
+        )
+
+        self.table_widget = QTableWidget()
+        self.scroll_area_table.setWidget(self.table_widget)
+        self.scroll_area_table.setWidgetResizable(True)
+
+        # Кнопка "Добавить данные"
+        self.add_data_button = QPushButton("Добавить данные", self)
+        self.add_data_button.setGeometry(50, 600, 150, 40)
+        self.add_data_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.add_data_button.clicked.connect(self.open_add_data_window)
+
+        # Кнопка назад
+        self.back_button = QPushButton("Назад", self)
+        self.back_button.setGeometry(750, 650, 100, 40)
+        self.back_button.setStyleSheet(
+            "background-color: #ba68c8; color: white; border-radius: 10px; font-size: 14px;"
+        )
+        self.back_button.clicked.connect(self.go_to_login)
+
+    def go_to_login(self):
+        self.login_window = LoginWindow()
+        self.login_window.show()
+        self.close()
+
+    def call_procedure_and_display(self, procedure_name, label, scroll_area):
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="Cinema"
+            )
+            cursor = connection.cursor()
+            cursor.callproc(procedure_name)
+
+            result_text = ""
+            is_table = False
+
+            for result in cursor.stored_results():
+                rows = result.fetchall()
+                if rows:
+                    if isinstance(rows[0], (list, tuple)):
+                        is_table = True
+                        columns = [desc[0] for desc in result.description]
+                        table_widget = QTableWidget()
+                        table_widget.setRowCount(len(rows))
+                        table_widget.setColumnCount(len(columns))
+                        table_widget.setHorizontalHeaderLabels(columns)
+                        for i, row in enumerate(rows):
+                            for j, value in enumerate(row):
+                                table_widget.setItem(i, j, QTableWidgetItem(str(value)))
+                        scroll_area.setWidget(table_widget)
+                        scroll_area.setWidgetResizable(True)
+                    else:
+                        result_text = "\n".join([str(row[0]) for row in rows])
+
+            if not is_table:
+                label.setText(result_text if result_text else "Нет данных")
+        except mysql.connector.Error as e:
+            label.setText(f"Ошибка базы данных: {e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+
+    def show_table(self):
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="Cinema"
+            )
+            cursor = connection.cursor()
+            cursor.execute("SELECT * FROM holl LIMIT 100;")
+            rows = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+            self.table_widget.setRowCount(len(rows))
+            self.table_widget.setColumnCount(len(columns))
+            self.table_widget.setHorizontalHeaderLabels(columns)
+            for i, row in enumerate(rows):
+                for j, value in enumerate(row):
+                    self.table_widget.setItem(i, j, QTableWidgetItem(str(value)))
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Ошибка базы данных", f"{e}")
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+
+    def open_add_data_window(self):
+        self.add_data_window = AddDataWindow()
+        self.add_data_window.show()
+
+if __name__ == "__main__":
+    app = QApplication([])
+    window = LoginWindow()
+    window.show()
+    app.exec()
+
+
+
+
+

@@ -1,0 +1,86 @@
+sun
+
+from PyQt6 import QtCore, QtGui, QtWidgets
+import MySQLdb as mdb
+
+class Ui_Form(object):
+    def setupUi(self, Form):
+        Form.setObjectName("Form")
+        Form.resize(927, 641)
+        Form.setStyleSheet("background-color: rgb(255, 57, 57);")
+        self.radioButton = QtWidgets.QRadioButton(parent=Form)
+        self.radioButton.setGeometry(QtCore.QRect(280, 30, 341, 41))
+        font = QtGui.QFont()
+        font.setPointSize(20)
+        self.radioButton.setFont(font)
+        self.radioButton.setObjectName("radioButton")
+        self.lineEdit = QtWidgets.QLineEdit(parent=Form)
+        self.lineEdit.setGeometry(QtCore.QRect(350, 90, 191, 61))
+        self.lineEdit.setStyleSheet("background-color: rgb(255, 255, 255);")
+        self.lineEdit.setObjectName("lineEdit")
+        self.pushButton = QtWidgets.QPushButton(parent=Form)
+        self.pushButton.setGeometry(QtCore.QRect(370, 180, 131, 51))
+        self.pushButton.setStyleSheet("background-color: rgb(255, 198, 198);")
+        self.pushButton.setObjectName("pushButton")
+        self.label = QtWidgets.QLabel(parent=Form)
+        self.label.setGeometry(QtCore.QRect(60, 310, 801, 221))
+        self.label.setObjectName("label")
+
+        self.retranslateUi(Form)
+        QtCore.QMetaObject.connectSlotsByName(Form)
+
+    def retranslateUi(self, Form):
+        _translate = QtCore.QCoreApplication.translate
+        Form.setWindowTitle(_translate("Form", "Form"))
+        self.radioButton.setText(_translate("Form", "Обьекты недвижимости"))
+        self.pushButton.setText(_translate("Form", "Оплатить"))
+        self.label.setText(_translate("Form", "TextLabel"))
+
+
+        self.pushButton.clicked.connect(self.display_data)
+
+    def display_data(self):
+        con = mdb.connect(
+            host = 'localhost',
+            user = 'root',
+            password = '',
+            database = 'podgotovka'
+        )
+
+        with con:
+            cur = con.cursor()
+            cur.execute('SELECT * FROM bids')
+            data = cur.fetchall()
+            formatted_data = '\n'.join(str(row) for row in data)
+            self.label.setText(formatted_data)
+
+if __name__ == "__main__":
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    Form = QtWidgets.QWidget()
+    ui = Ui_Form()
+    ui.setupUi(Form)
+    Form.show()
+    sys.exit(app.exec())
+
+main
+
+import MySQLdb as mdb
+from PyQt6 import QtWidgets
+from sun import Ui_Form
+
+con = mdb.connect(
+    host = 'localhost',
+    user = 'root',
+    password = '',
+    database = 'podgotovka'
+)
+
+if __name__ == "__main__":
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    Form = QtWidgets.QWidget()
+    ui = Ui_Form()
+    ui.setupUi(Form)
+    Form.show()
+    sys.exit(app.exec())
