@@ -1,0 +1,15 @@
+self.label_3.setText(formatted_data)
+
+    # Метод для подсчета общей вместимости автобусов
+    def display_data_2(self):
+        con = mdb.connect(
+            host="localhost",
+            user='root',
+            database='kval_1'
+        )
+        with con:
+            cur = con.cursor()
+            cur.execute('SELECT SUM(bus.vmestimost) FROM bus')
+            data = cur.fetchall()
+            formatted_data = '\n'.join(str(row) for row in data)
+            self.label_4.setText(formatted_data)
