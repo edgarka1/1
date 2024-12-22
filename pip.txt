@@ -1,0 +1,11 @@
+pip install mysql-connector
+pip install pyqt6
+pip install pyqt6-tools
+
+mysql==0.0.3
+mysql-connector==2.2.9
+mysql-connector-python==9.1.0
+mysqlclient==2.2.6
+PyQt6==6.8.0
+PyQt6-Qt6==6.8.1
+PyQt6_sip==13.9.1
