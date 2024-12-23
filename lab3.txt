@@ -1,0 +1,1520 @@
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QTextEdit
+)
+from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt
+import mysql.connector
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Автовокзал")
+        self.setGeometry(100, 100, 600, 500)
+        self.setStyleSheet("background-color: #d4f8d4;")
+
+        self.initUI()
+
+    def initUI(self):
+        self.welcome_widget = QWidget()
+        self.main_layout = QVBoxLayout()
+
+        self.welcome_label = QLabel("Добро пожаловать в систему \"Автовокзал\"")
+        self.welcome_label.setFont(QFont("Arial", 16))
+        self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.welcome_label.setStyleSheet("color: #2d6a4f;")
+
+        self.login_label = QLabel("Введите логин:")
+        self.login_label.setFont(QFont("Arial", 12))
+        self.login_label.setStyleSheet("color: #40916c;")
+
+        self.login_input = QLineEdit()
+        self.login_input.setFont(QFont("Arial", 12))
+        self.login_input.setStyleSheet(
+            "border: 2px solid #74c69d; border-radius: 10px; padding: 5px; background-color: #edf7ed;"
+        )
+
+        self.next_button = QPushButton("Далее")
+        self.next_button.setFont(QFont("Arial", 12))
+        self.next_button.setStyleSheet(
+            "background-color: #52b788; color: white; border-radius: 10px; padding: 8px;"
+        )
+        self.next_button.clicked.connect(self.show_main_window)
+
+        self.main_layout.addWidget(self.welcome_label)
+        self.main_layout.addWidget(self.login_label)
+        self.main_layout.addWidget(self.login_input)
+        self.main_layout.addWidget(self.next_button)
+
+        self.welcome_widget.setLayout(self.main_layout)
+        self.setCentralWidget(self.welcome_widget)
+
+    def show_main_window(self):
+        self.main_window = MainWindowContent()
+        self.setCentralWidget(self.main_window)
+
+class MainWindowContent(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setStyleSheet("background-color: #d4f8d4;")
+        self.layout = QVBoxLayout()
+
+        self.title_label = QLabel("Автовокзал")
+        self.title_label.setFont(QFont("Arial", 16))
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_label.setStyleSheet("color: #2d6a4f;")
+
+        self.hp1_button = QPushButton("Процедура hp1: Количество рейсов по станциям")
+        self.hp1_button.setFont(QFont("Arial", 12))
+        self.hp1_button.setStyleSheet(
+            "background-color: #52b788; color: white; border-radius: 10px; padding: 8px;"
+        )
+        self.hp1_button.clicked.connect(self.show_hp1)
+
+        self.hp2_button = QPushButton("Процедура hp2: Общее количество пассажиров")
+        self.hp2_button.setFont(QFont("Arial", 12))
+        self.hp2_button.setStyleSheet(
+            "background-color: #52b788; color: white; border-radius: 10px; padding: 8px;"
+        )
+        self.hp2_button.clicked.connect(self.show_hp2)
+
+        self.reisi_button = QPushButton("Показать данные таблицы \"Рейсы\"")
+        self.reisi_button.setFont(QFont("Arial", 12))
+        self.reisi_button.setStyleSheet(
+            "background-color: #52b788; color: white; border-radius: 10px; padding: 8px;"
+        )
+        self.reisi_button.clicked.connect(self.show_reisi)
+
+        self.output_text = QTextEdit()
+        self.output_text.setFont(QFont("Arial", 12))
+        self.output_text.setReadOnly(True)
+        self.output_text.setStyleSheet(
+            "border: 2px solid #74c69d; border-radius: 10px; padding: 5px; background-color: #edf7ed;"
+        )
+
+        self.exit_button = QPushButton("Выход")
+        self.exit_button.setFont(QFont("Arial", 12))
+        self.exit_button.setStyleSheet(
+            "background-color: #40916c; color: white; border-radius: 10px; padding: 8px;"
+        )
+        self.exit_button.clicked.connect(QApplication.quit)
+
+        self.layout.addWidget(self.title_label)
+        self.layout.addWidget(self.hp1_button)
+        self.layout.addWidget(self.hp2_button)
+        self.layout.addWidget(self.reisi_button)
+        self.layout.addWidget(self.output_text)
+        self.layout.addWidget(self.exit_button)
+        self.setLayout(self.layout)
+
+    def execute_query(self, query):
+        try:
+            print("Подключение к базе данных...")
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="Avtovokzal"
+            )
+            cursor = connection.cursor()
+            print(f"Выполняем запрос: {query}")
+            cursor.execute(query)
+            results = cursor.fetchall()
+            return results
+        except mysql.connector.Error as e:
+            self.output_text.setText(f"Ошибка базы данных: {e}")
+            return []
+        finally:
+            if connection:
+                connection.close()
+
+    def show_hp1(self):
+        query = "CALL hp1()"
+        results = self.execute_query(query)
+        self.display_results("Процедура hp1", results)
+
+    def show_hp2(self):
+        query = "CALL hp2()"
+        results = self.execute_query(query)
+        self.display_results("Процедура hp2", results)
+
+    def show_reisi(self):
+        query = "SELECT * FROM Reisi"
+        results = self.execute_query(query)
+        self.display_results("Данные таблицы \"Рейсы\"", results)
+
+    def display_results(self, title, results):
+        output = f"{title}:\n"
+        for row in results:
+            output += " | ".join(map(str, row)) + "\n"
+        self.output_text.setText(output)
+
+if __name__ == "__main__":
+    import sys
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
+
+
+
+
+
+
+
+
+
+
+
+
+1.	Автовокзал. 
+Автобусы производят рейсы до станций по расписанию. Каждый автобус вмещает не более определенного количества пассажиров
+Таблицы: станции (код станции, название станции), автобусы (код автобуса, марка автобуса, государственный номер, вместимость), рейсы (код рейса, код станции, код автобуса, время отправления).
+Определить:
+- сколько выполняется рейсов до каждой станции?
+- каково общее количество пассажиров?
+CREATE DATABASE IF NOT EXISTS Avtovokzal;
+USE Avtovokzal;
+
+-- Таблицы
+CREATE TABLE Stations (
+    station_id INT AUTO_INCREMENT PRIMARY KEY,
+    station_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Buses (
+    bus_id INT AUTO_INCREMENT PRIMARY KEY,
+    brand VARCHAR(100) NOT NULL,
+    reg_number VARCHAR(20) NOT NULL,
+    capacity INT NOT NULL
+);
+
+CREATE TABLE Routes (
+    route_id INT AUTO_INCREMENT PRIMARY KEY,
+    station_id INT,
+    bus_id INT,
+    departure_time TIME,
+    FOREIGN KEY (station_id) REFERENCES Stations(station_id),
+    FOREIGN KEY (bus_id) REFERENCES Buses(bus_id)
+);
+Процедуры:
+
+-- Сколько рейсов выполняется до каждой станции
+DELIMITER $$
+CREATE PROCEDURE GetRoutesPerStation()
+BEGIN
+    SELECT s.station_name, COUNT(r.route_id) AS route_count
+    FROM Stations s
+    LEFT JOIN Routes r ON s.station_id = r.station_id
+    GROUP BY s.station_name;
+END$$
+DELIMITER ;
+
+-- Общее количество пассажиров
+DELIMITER $$
+CREATE PROCEDURE GetTotalPassengers()
+BEGIN
+    SELECT SUM(b.capacity) AS total_passengers
+    FROM Routes r
+    JOIN Buses b ON r.bus_id = b.bus_id;
+END$$
+DELIMITER ;
+------------------------------------------------------------------------------------------------------
+
+
+
+
+2.	Автосалон.
+Менеджеры автосалона осуществляют продажу клиентам автомобилей различных марок.
+Таблицы: Покупатели (Код покупателя, ФИО), Менеджеры (Код менеджера, ФИО), Автомобили (код, марка), Продажи (Код менеджера, код автомобиля, государственный номер, код покупателя, дата, цена). 
+Определить:
+- среднюю сумму сделки
+- долю продаж автомобилей разных марок.
+
+CREATE DATABASE IF NOT EXISTS Autosalon;
+USE Autosalon;
+
+-- Таблицы
+CREATE TABLE Customers (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Managers (
+    manager_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Cars (
+    car_id INT AUTO_INCREMENT PRIMARY KEY,
+    brand VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Sales (
+    sale_id INT AUTO_INCREMENT PRIMARY KEY,
+    manager_id INT,
+    car_id INT,
+    reg_number VARCHAR(20),
+    customer_id INT,
+    sale_date DATE,
+    price DECIMAL(10, 2),
+    FOREIGN KEY (manager_id) REFERENCES Managers(manager_id),
+    FOREIGN KEY (car_id) REFERENCES Cars(car_id),
+    FOREIGN KEY (customer_id) REFERENCES Customers(customer_id)
+);
+Процедуры:
+
+-- Средняя сумма сделки
+DELIMITER $$
+CREATE PROCEDURE GetAverageDeal()
+BEGIN
+    SELECT AVG(price) AS average_deal
+    FROM Sales;
+END$$
+DELIMITER ;
+
+-- Доля продаж автомобилей разных марок
+DELIMITER $$
+CREATE PROCEDURE GetSalesShare()
+BEGIN
+    SELECT c.brand, COUNT(s.sale_id) AS sales_count,
+           ROUND((COUNT(s.sale_id) / (SELECT COUNT(*) FROM Sales)) * 100, 2) AS sales_share
+    FROM Sales s
+    JOIN Cars c ON s.car_id = c.car_id
+    GROUP BY c.brand;
+END$$
+DELIMITER ;
+
+
+--------------------------------------------------------------------------------------------
+
+
+
+
+3.	Библиотека.
+Читатели библиотеки получают книги разных авторов, жанров. В читательском билете указывается дата выдачи.
+Таблицы: Книги (код книги, название, автор, жанр, год издания), Читатели (код читателя, фамилия, имя, отчество, № читательского билета), выдача (код читателя, код книги, дата выдачи). 
+Определить: 
+- наиболее читаемого автора
+- выдачу книг по датам.
+CREATE DATABASE IF NOT EXISTS Library;
+USE Library;
+
+-- Таблицы
+CREATE TABLE Books (
+    book_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    author VARCHAR(100) NOT NULL,
+    genre VARCHAR(50),
+    year_of_publication YEAR
+);
+
+CREATE TABLE Readers (
+    reader_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    ticket_number VARCHAR(20) UNIQUE
+);
+
+CREATE TABLE Issuance (
+    issuance_id INT AUTO_INCREMENT PRIMARY KEY,
+    reader_id INT,
+    book_id INT,
+    issuance_date DATE,
+    FOREIGN KEY (reader_id) REFERENCES Readers(reader_id),
+    FOREIGN KEY (book_id) REFERENCES Books(book_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Наиболее читаемый автор
+DELIMITER $$
+CREATE PROCEDURE GetMostReadAuthor()
+BEGIN
+    SELECT b.author, COUNT(i.issuance_id) AS issuance_count
+    FROM Issuance i
+    JOIN Books b ON i.book_id = b.book_id
+    GROUP BY b.author
+    ORDER BY issuance_count DESC
+    LIMIT 1;
+END$$
+DELIMITER ;
+
+-- Выдача книг по датам
+DELIMITER $$
+CREATE PROCEDURE GetBooksByDate()
+BEGIN
+    SELECT issuance_date, COUNT(issuance_id) AS book_count
+    FROM Issuance
+    GROUP BY issuance_date
+    ORDER BY issuance_date;
+END$$
+DELIMITER ;
+
+
+----------------------------------------------------------------------------------------------
+
+
+
+
+
+4.	Гарантийная мастерская бытовой техники.
+В базе данных хранятся сведения о произведенных гарантийных ремонтах бытовой техники.
+Таблицы: Производители (Код производителя, Название), Виды техники (Код вида, название), Клиенты (Код клиента, ФИО, адрес), Категории ремонтов (Код категории, название), Ремонты (Код ремонта, Код клиента, Код вида техники, Код категории ремонта, Название техники, дата обращения, дата исполнения).
+Требуется:
+- указать невыполненные ремонты;
+- построить сравнительную диаграмму количества сложных ремонтов по разным производителям.
+
+CREATE DATABASE IF NOT EXISTS WarrantyWorkshop;
+USE WarrantyWorkshop;
+
+-- Таблицы
+CREATE TABLE Manufacturers (
+    manufacturer_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE EquipmentTypes (
+    type_id INT AUTO_INCREMENT PRIMARY KEY,
+    type_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Clients (
+    client_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100),
+    address VARCHAR(200)
+);
+
+CREATE TABLE RepairCategories (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(100)
+);
+
+CREATE TABLE Repairs (
+    repair_id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id INT,
+    type_id INT,
+    category_id INT,
+    equipment_name VARCHAR(100),
+    request_date DATE,
+    completion_date DATE,
+    FOREIGN KEY (client_id) REFERENCES Clients(client_id),
+    FOREIGN KEY (type_id) REFERENCES EquipmentTypes(type_id),
+    FOREIGN KEY (category_id) REFERENCES RepairCategories(category_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Невыполненные ремонты
+DELIMITER $$
+CREATE PROCEDURE GetUnfinishedRepairs()
+BEGIN
+    SELECT r.repair_id, r.equipment_name, r.request_date, c.full_name
+    FROM Repairs r
+    JOIN Clients c ON r.client_id = c.client_id
+    WHERE r.completion_date IS NULL;
+END$$
+DELIMITER ;
+
+-- Сравнительная диаграмма сложных ремонтов
+DELIMITER $$
+CREATE PROCEDURE GetComplexRepairsComparison()
+BEGIN
+    SELECT m.name AS manufacturer, COUNT(r.repair_id) AS complex_repairs
+    FROM Repairs r
+    JOIN EquipmentTypes e ON r.type_id = e.type_id
+    JOIN Manufacturers m ON e.type_id = m.manufacturer_id
+    WHERE r.category_id = (SELECT category_id FROM RepairCategories WHERE category_name = 'Сложный')
+    GROUP BY m.name;
+END$$
+DELIMITER ;
+
+
+--------------------------------------------------------------------------------------------
+
+
+
+
+
+5.	Гостиница.
+В базе данных хранятся сведения о свободных и занятых одно- и многоместных номерах разной категории и проживающих.
+Таблицы: Категории (Код категории, название), Номера (Код номера, код категории, номер, мест),  Граждане (Код гражданина, ФИО, паспорт), Размещение (Код размещения, код гражданина, код номера, дата въезда, срок проживания).
+Требуется:
+- определить количество полностью свободных номеров, то есть тех, в которых не поселены граждане;
+- сравнительную степень занятости (в процентах) номеров по категориям.
+
+CREATE DATABASE IF NOT EXISTS Hotel;
+USE Hotel;
+
+-- Таблицы
+CREATE TABLE Categories (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Rooms (
+    room_id INT AUTO_INCREMENT PRIMARY KEY,
+    category_id INT,
+    room_number VARCHAR(10),
+    capacity INT,
+    FOREIGN KEY (category_id) REFERENCES Categories(category_id)
+);
+
+CREATE TABLE Citizens (
+    citizen_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    passport VARCHAR(20) UNIQUE
+);
+
+CREATE TABLE Placement (
+    placement_id INT AUTO_INCREMENT PRIMARY KEY,
+    citizen_id INT,
+    room_id INT,
+    check_in_date DATE,
+    stay_duration INT,
+    FOREIGN KEY (citizen_id) REFERENCES Citizens(citizen_id),
+    FOREIGN KEY (room_id) REFERENCES Rooms(room_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Количество полностью свободных номеров
+DELIMITER $$
+CREATE PROCEDURE GetFreeRooms()
+BEGIN
+    SELECT r.room_id, r.room_number, r.capacity
+    FROM Rooms r
+    LEFT JOIN Placement p ON r.room_id = p.room_id
+    WHERE p.room_id IS NULL;
+END$$
+DELIMITER ;
+
+-- Степень занятости номеров по категориям
+DELIMITER $$
+CREATE PROCEDURE GetRoomOccupancy()
+BEGIN
+    SELECT c.category_name, 
+           COUNT(DISTINCT p.room_id) AS occupied_rooms,
+           COUNT(DISTINCT r.room_id) AS total_rooms,
+           ROUND((COUNT(DISTINCT p.room_id) / COUNT(DISTINCT r.room_id)) * 100, 2) AS occupancy_rate
+    FROM Rooms r
+    LEFT JOIN Placement p ON r.room_id = p.room_id
+    JOIN Categories c ON r.category_id = c.category_id
+    GROUP BY c.category_name;
+END$$
+DELIMITER ;
+
+---------------------------------------------------------------------------------------------
+
+
+
+ 
+6.	Диспетчер автоперевозок
+В базе данных хранятся сведения об автомобилях, водителях, грузах, адресах, рейсах.Предполагается, что за один рейс можно перевезти только один груз в один пункт. Все рейсы выполняются в пределах одной рабочей смены.
+Таблицы: Пункты (Код пункта, название), Грузы (Код груза, название, масса), Автомобили (Код автомобиля, марка, госномер, грузоподъемность); Водители (Код водителя, ФИО, телефон); Рейсы (Код рейса, код водителя, код автомобиля, код пункта, код груза, время выезда, время в пути).
+Определить:
+- список водителей в рейсе на данный момент времени;
+- среднюю загруженность (по массе) автомобилей.
+
+CREATE DATABASE IF NOT EXISTS TransportDispatcher;
+USE TransportDispatcher;
+
+-- Таблицы
+CREATE TABLE Locations (
+    location_id INT AUTO_INCREMENT PRIMARY KEY,
+    location_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Cargos (
+    cargo_id INT AUTO_INCREMENT PRIMARY KEY,
+    cargo_name VARCHAR(100),
+    weight DECIMAL(10, 2)
+);
+
+CREATE TABLE Vehicles (
+    vehicle_id INT AUTO_INCREMENT PRIMARY KEY,
+    brand VARCHAR(100),
+    reg_number VARCHAR(20),
+    capacity DECIMAL(10, 2)
+);
+
+CREATE TABLE Drivers (
+    driver_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100),
+    phone VARCHAR(15)
+);
+
+CREATE TABLE Trips (
+    trip_id INT AUTO_INCREMENT PRIMARY KEY,
+    driver_id INT,
+    vehicle_id INT,
+    location_id INT,
+    cargo_id INT,
+    departure_time TIME,
+    duration TIME,
+    FOREIGN KEY (driver_id) REFERENCES Drivers(driver_id),
+    FOREIGN KEY (vehicle_id) REFERENCES Vehicles(vehicle_id),
+    FOREIGN KEY (location_id) REFERENCES Locations(location_id),
+    FOREIGN KEY (cargo_id) REFERENCES Cargos(cargo_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Список водителей в рейсе на данный момент времени
+DELIMITER $$
+CREATE PROCEDURE GetDriversOnTrips()
+BEGIN
+    SELECT d.full_name, v.brand, v.reg_number, t.departure_time
+    FROM Trips t
+    JOIN Drivers d ON t.driver_id = d.driver_id
+    JOIN Vehicles v ON t.vehicle_id = v.vehicle_id
+    WHERE t.departure_time <= NOW() AND ADDTIME(t.departure_time, t.duration) >= NOW();
+END$$
+DELIMITER ;
+
+-- Средняя загруженность автомобилей
+DELIMITER $$
+CREATE PROCEDURE GetAverageLoad()
+BEGIN
+    SELECT v.brand, v.reg_number, 
+           ROUND(AVG(c.weight / v.capacity) * 100, 2) AS average_load_percentage
+    FROM Trips t
+    JOIN Vehicles v ON t.vehicle_id = v.vehicle_id
+    JOIN Cargos c ON t.cargo_id = c.cargo_id
+    GROUP BY v.vehicle_id;
+END$$
+DELIMITER ;
+
+----------------------------------------------------------------------------------------------
+
+
+
+
+
+7.	Домашний бюджет.
+В базе данных хранятся сведения о ежедневных тратах по статьям расходов.
+Таблицы: Статьи расходов (Код статьи, название),  Разделы (Код раздела, название раздела, код статьи, единица измерения), Расходы (Код расхода, код раздела, дата, количество, цена). Например, продукты являются статьей, а черный хлеб – разделом.
+Требуется определить:
+- месячный бюджет семьи;
+- долю каждой статьи в общем бюджете.
+
+CREATE DATABASE IF NOT EXISTS HomeBudget;
+USE HomeBudget;
+
+-- Таблицы
+CREATE TABLE ExpenseItems (
+    item_id INT AUTO_INCREMENT PRIMARY KEY,
+    item_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Sections (
+    section_id INT AUTO_INCREMENT PRIMARY KEY,
+    section_name VARCHAR(100) NOT NULL,
+    item_id INT,
+    unit VARCHAR(50),
+    FOREIGN KEY (item_id) REFERENCES ExpenseItems(item_id)
+);
+
+CREATE TABLE Expenses (
+    expense_id INT AUTO_INCREMENT PRIMARY KEY,
+    section_id INT,
+    expense_date DATE,
+    quantity DECIMAL(10, 2),
+    price DECIMAL(10, 2),
+    FOREIGN KEY (section_id) REFERENCES Sections(section_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Месячный бюджет семьи
+DELIMITER $$
+CREATE PROCEDURE GetMonthlyBudget(IN expense_month INT, IN expense_year INT)
+BEGIN
+    SELECT SUM(quantity * price) AS monthly_budget
+    FROM Expenses
+    WHERE MONTH(expense_date) = expense_month AND YEAR(expense_date) = expense_year;
+END$$
+DELIMITER ;
+
+-- Доля каждой статьи в общем бюджете
+DELIMITER $$
+CREATE PROCEDURE GetExpenseShare(IN expense_month INT, IN expense_year INT)
+BEGIN
+    SELECT e.item_name, 
+           ROUND(SUM(ex.quantity * ex.price) / (SELECT SUM(quantity * price) 
+                                                FROM Expenses 
+                                                WHERE MONTH(expense_date) = expense_month AND YEAR(expense_date) = expense_year) * 100, 2) AS expense_share
+    FROM Expenses ex
+    JOIN Sections s ON ex.section_id = s.section_id
+    JOIN ExpenseItems e ON s.item_id = e.item_id
+    WHERE MONTH(ex.expense_date) = expense_month AND YEAR(ex.expense_date) = expense_year
+    GROUP BY e.item_id;
+END$$
+DELIMITER ;
+
+
+-------------------------------------------------------------------------------------------
+
+
+
+
+
+8.	Ежедневник.
+В базе данных хранятся сведения о намеченных событиях (делах, встречах и звонках) и их выполнении.
+Таблицы: Виды событий (Код вида события, название вида), События (Код события, код вида события, название события, время начала, продолжительность, отметка о выполнении).
+Требуется 
+- определить относительную долю загрузки рабочего дня по приоритетам;
+- построить список невыполненных дел в порядке срока давности.
+
+CREATE DATABASE IF NOT EXISTS Planner;
+USE Planner;
+
+-- Таблицы
+CREATE TABLE EventTypes (
+    event_type_id INT AUTO_INCREMENT PRIMARY KEY,
+    event_type_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Events (
+    event_id INT AUTO_INCREMENT PRIMARY KEY,
+    event_type_id INT,
+    event_name VARCHAR(200),
+    start_time TIME,
+    duration INT,
+    completed BOOLEAN,
+    FOREIGN KEY (event_type_id) REFERENCES EventTypes(event_type_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Доля загрузки рабочего дня по приоритетам
+DELIMITER $$
+CREATE PROCEDURE GetDayLoadShare()
+BEGIN
+    SELECT et.event_type_name,
+           ROUND(SUM(e.duration) / (8 * 60) * 100, 2) AS load_percentage
+    FROM Events e
+    JOIN EventTypes et ON e.event_type_id = et.event_type_id
+    GROUP BY et.event_type_name;
+END$$
+DELIMITER ;
+
+-- Список невыполненных дел в порядке срока давности
+DELIMITER $$
+CREATE PROCEDURE GetPendingEvents()
+BEGIN
+    SELECT event_name, start_time, duration
+    FROM Events
+    WHERE completed = FALSE
+    ORDER BY start_time;
+END$$
+DELIMITER ;
+
+---------------------------------------------------------------------------------------------
+
+
+
+
+9.	Кадровое агентство. 
+В базе данных хранятся сведения о вакансиях, включая следующие требования: образование, профессию,  уровень владения компьютером.
+Таблицы: Должности (Код должности, название), Профессии (Код профессии, название), Образование (Код образования, название), Уровень владения компьютером (Код уровня, название), Вакансия (Код вакансии, дата опубликования, название вакансии, оклад, актуальность, код профессии, код образования, код уровня).
+Требуется:
+- выдать список актуальных (незакрытых вакансий):
+- построить сравнительную диаграмму среднего оклада в зависимости от уровня владения компьютером.
+
+CREATE DATABASE IF NOT EXISTS EmploymentAgency;
+USE EmploymentAgency;
+
+-- Таблицы
+CREATE TABLE Positions (
+    position_id INT AUTO_INCREMENT PRIMARY KEY,
+    position_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Professions (
+    profession_id INT AUTO_INCREMENT PRIMARY KEY,
+    profession_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE EducationLevels (
+    education_id INT AUTO_INCREMENT PRIMARY KEY,
+    education_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE ComputerSkills (
+    skill_id INT AUTO_INCREMENT PRIMARY KEY,
+    skill_level VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Vacancies (
+    vacancy_id INT AUTO_INCREMENT PRIMARY KEY,
+    publish_date DATE,
+    vacancy_name VARCHAR(200),
+    salary DECIMAL(10, 2),
+    is_active BOOLEAN,
+    profession_id INT,
+    education_id INT,
+    skill_id INT,
+    FOREIGN KEY (profession_id) REFERENCES Professions(profession_id),
+    FOREIGN KEY (education_id) REFERENCES EducationLevels(education_id),
+    FOREIGN KEY (skill_id) REFERENCES ComputerSkills(skill_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Список актуальных вакансий
+DELIMITER $$
+CREATE PROCEDURE GetActiveVacancies()
+BEGIN
+    SELECT vacancy_name, salary, publish_date
+    FROM Vacancies
+    WHERE is_active = TRUE;
+END$$
+DELIMITER ;
+
+-- Средний оклад в зависимости от уровня владения компьютером
+DELIMITER $$
+CREATE PROCEDURE GetSalaryBySkill()
+BEGIN
+    SELECT cs.skill_level,
+           ROUND(AVG(v.salary), 2) AS average_salary
+    FROM Vacancies v
+    JOIN ComputerSkills cs ON v.skill_id = cs.skill_id
+    GROUP BY cs.skill_level;
+END$$
+DELIMITER ;
+
+------------------------------------------------------------------------------------------------------
+
+
+
+10.	Канцелярия.
+В базе данных хранятся сведения о движении документов на предприятии.
+Таблицы: Виды документов (Код вида, название), Отделы (Код отдела, название), Документы (Код документа, название, номер, код вида, код отдела – отправителя, код отдела – получателя, дата регистрации).
+Требуется:
+- найти служебные записки планового отдела;
+- построить сравнительную диаграмму количества документов по каждому виду.
+
+CREATE DATABASE IF NOT EXISTS Office;
+USE Office;
+
+-- Таблицы
+CREATE TABLE DocumentTypes (
+    document_type_id INT AUTO_INCREMENT PRIMARY KEY,
+    document_type_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Departments (
+    department_id INT AUTO_INCREMENT PRIMARY KEY,
+    department_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Documents (
+    document_id INT AUTO_INCREMENT PRIMARY KEY,
+    document_name VARCHAR(200),
+    document_number VARCHAR(50),
+    document_type_id INT,
+    sender_department_id INT,
+    receiver_department_id INT,
+    registration_date DATE,
+    FOREIGN KEY (document_type_id) REFERENCES DocumentTypes(document_type_id),
+    FOREIGN KEY (sender_department_id) REFERENCES Departments(department_id),
+    FOREIGN KEY (receiver_department_id) REFERENCES Departments(department_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Служебные записки планового отдела
+DELIMITER $$
+CREATE PROCEDURE GetPlanningDepartmentMemos()
+BEGIN
+    SELECT d.document_name, d.document_number, d.registration_date
+    FROM Documents d
+    JOIN Departments dept ON d.sender_department_id = dept.department_id
+    WHERE dept.department_name = 'Плановый отдел' AND d.document_type_id = (
+        SELECT document_type_id FROM DocumentTypes WHERE document_type_name = 'Служебная записка'
+    );
+END$$
+DELIMITER ;
+
+-- Количество документов по каждому виду
+DELIMITER $$
+CREATE PROCEDURE GetDocumentsByType()
+BEGIN
+    SELECT dt.document_type_name, COUNT(d.document_id) AS document_count
+    FROM Documents d
+    JOIN DocumentTypes dt ON d.document_type_id = dt.document_type_id
+    GROUP BY dt.document_type_name;
+END$$
+DELIMITER ;
+
+-------------------------------------------------------------------------------------------------
+
+
+
+
+11.	Кинотеатр
+Таблицы: Зал (Код зала, вместимость); Фильм (Код фильма, Название, Жанр); Продажа (Код продажи, Код фильма, Код зала, Время, Номер места).
+Определить:
+- Процент наполнения зала по сеансам;
+- Самый популярный жанр.
+
+CREATE DATABASE IF NOT EXISTS Cinema;
+USE Cinema;
+
+-- Таблицы
+CREATE TABLE Halls (
+    hall_id INT AUTO_INCREMENT PRIMARY KEY,
+    capacity INT NOT NULL
+);
+
+CREATE TABLE Movies (
+    movie_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(200),
+    genre VARCHAR(100)
+);
+
+CREATE TABLE Tickets (
+    ticket_id INT AUTO_INCREMENT PRIMARY KEY,
+    movie_id INT,
+    hall_id INT,
+    show_time TIME,
+    seat_number INT,
+    FOREIGN KEY (movie_id) REFERENCES Movies(movie_id),
+    FOREIGN KEY (hall_id) REFERENCES Halls(hall_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Процент наполнения зала по сеансам
+DELIMITER $$
+CREATE PROCEDURE GetHallOccupancy()
+BEGIN
+    SELECT h.hall_id, 
+           ROUND((COUNT(t.ticket_id) / h.capacity) * 100, 2) AS occupancy_percentage
+    FROM Tickets t
+    JOIN Halls h ON t.hall_id = h.hall_id
+    GROUP BY h.hall_id;
+END$$
+DELIMITER ;
+
+-- Самый популярный жанр
+DELIMITER $$
+CREATE PROCEDURE GetMostPopularGenre()
+BEGIN
+    SELECT m.genre, COUNT(t.ticket_id) AS tickets_sold
+    FROM Tickets t
+    JOIN Movies m ON t.movie_id = m.movie_id
+    GROUP BY m.genre
+    ORDER BY tickets_sold DESC
+    LIMIT 1;
+END$$
+DELIMITER ;
+
+----------------------------------------------------------------------------------------------------
+
+
+
+
+
+12.	Конструкторская спецификация. 
+В базе хранятся сведения об изделии, состоящем из узлов, деталей, стандартных изделий, материалов.
+Таблицы: Разделы спецификации (Код раздела, название), Предметы (Код предмета, обозначение, название, единица измерения), Состав (Код состава, код узла, код подузла, количество, позиция).
+Требуется:
+- отпечатать спецификацию по коду изделия в порядке возрастания кода раздела и позиции);
+- отпечатать алфавитный список стандартных изделий.
+
+CREATE DATABASE IF NOT EXISTS Specification;
+USE Specification;
+
+-- Таблицы
+CREATE TABLE Sections (
+    section_id INT AUTO_INCREMENT PRIMARY KEY,
+    section_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Items (
+    item_id INT AUTO_INCREMENT PRIMARY KEY,
+    designation VARCHAR(100),
+    item_name VARCHAR(200),
+    unit VARCHAR(50)
+);
+
+CREATE TABLE Composition (
+    composition_id INT AUTO_INCREMENT PRIMARY KEY,
+    node_id INT,
+    subnode_id INT,
+    quantity INT,
+    position INT
+);
+Процедуры:
+sql
+Копировать код
+-- Спецификация по коду изделия
+DELIMITER $$
+CREATE PROCEDURE GetSpecification(IN item_id INT)
+BEGIN
+    SELECT c.position, s.section_name, i.item_name, c.quantity
+    FROM Composition c
+    JOIN Items i ON c.node_id = i.item_id
+    JOIN Sections s ON c.subnode_id = s.section_id
+    WHERE c.node_id = item_id
+    ORDER BY s.section_name, c.position;
+END$$
+DELIMITER ;
+
+-- Алфавитный список стандартных изделий
+DELIMITER $$
+CREATE PROCEDURE GetStandardItems()
+BEGIN
+    SELECT item_name
+    FROM Items
+    WHERE unit = 'стандарт'
+    ORDER BY item_name;
+END$$
+DELIMITER ;
+
+
+----------------------------------------------------------------------------------------------
+
+
+
+
+13.	Междугородная телефонная станция. 
+В базе хранится информация о продолжительности и стоимости междугородных звонков по России.
+Таблицы: Тариф (Код тарифа, минимальное расстояние, максимальное расстояние, цена); Города (Код города, расстояние, код тарифа), Разговоры (Код разговора, код города, начало, продолжительность).
+Требуется:
+- отпечатать список переговоров в порядке возрастания времени начала;
+- определить долю стоимости разговоров по каждому городу в общей стоимости.
+
+CREATE DATABASE IF NOT EXISTS IntercityStation;
+USE IntercityStation;
+
+-- Таблицы
+CREATE TABLE Tariffs (
+    tariff_id INT AUTO_INCREMENT PRIMARY KEY,
+    min_distance INT NOT NULL,
+    max_distance INT NOT NULL,
+    price_per_minute DECIMAL(10, 2) NOT NULL
+);
+
+CREATE TABLE Cities (
+    city_id INT AUTO_INCREMENT PRIMARY KEY,
+    distance INT NOT NULL,
+    tariff_id INT,
+    FOREIGN KEY (tariff_id) REFERENCES Tariffs(tariff_id)
+);
+
+CREATE TABLE Calls (
+    call_id INT AUTO_INCREMENT PRIMARY KEY,
+    city_id INT,
+    start_time TIME NOT NULL,
+    duration_minutes INT NOT NULL,
+    FOREIGN KEY (city_id) REFERENCES Cities(city_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Список переговоров по времени начала
+DELIMITER $$
+CREATE PROCEDURE GetCallsByStartTime()
+BEGIN
+    SELECT c.call_id, ct.distance, c.start_time, c.duration_minutes
+    FROM Calls c
+    JOIN Cities ct ON c.city_id = ct.city_id
+    ORDER BY c.start_time;
+END$$
+DELIMITER ;
+
+-- Доля стоимости разговоров по каждому городу
+DELIMITER $$
+CREATE PROCEDURE GetCityCostShare()
+BEGIN
+    SELECT ct.city_id, 
+           ROUND(SUM(c.duration_minutes * t.price_per_minute) / 
+           (SELECT SUM(c.duration_minutes * t.price_per_minute) 
+            FROM Calls c 
+            JOIN Cities ct ON c.city_id = ct.city_id 
+            JOIN Tariffs t ON ct.tariff_id = t.tariff_id) * 100, 2) AS cost_share
+    FROM Calls c
+    JOIN Cities ct ON c.city_id = ct.city_id
+    JOIN Tariffs t ON ct.tariff_id = t.tariff_id
+    GROUP BY ct.city_id;
+END$$
+DELIMITER ;
+
+-------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+14.	Обменный пункт (продажа валюты).
+В базе данных хранятся сведения о клиентах, валюте и совершенных сделках.
+Таблицы: Клиенты (Код клиента, ФИО, паспорт); Валюта (Код валюты, Название, Курс продажи); Сделки (Код сделки, Код клиента, Код валюты, Сумма).
+Определить:
+- долю сделок по каждой валюте (в рублях) к общему объему сделок (в рублях);
+- максимальный размер сделки в рублях.
+
+CREATE DATABASE IF NOT EXISTS ExchangeOffice;
+USE ExchangeOffice;
+
+-- Таблицы
+CREATE TABLE Clients (
+    client_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    passport VARCHAR(20) UNIQUE
+);
+
+CREATE TABLE Currencies (
+    currency_id INT AUTO_INCREMENT PRIMARY KEY,
+    currency_name VARCHAR(50),
+    sale_rate DECIMAL(10, 2) NOT NULL
+);
+
+CREATE TABLE Transactions (
+    transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id INT,
+    currency_id INT,
+    amount DECIMAL(10, 2),
+    FOREIGN KEY (client_id) REFERENCES Clients(client_id),
+    FOREIGN KEY (currency_id) REFERENCES Currencies(currency_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Доля сделок по каждой валюте
+DELIMITER $$
+CREATE PROCEDURE GetCurrencyDealShare()
+BEGIN
+    SELECT c.currency_name,
+           ROUND(SUM(t.amount * c.sale_rate) / 
+           (SELECT SUM(t.amount * c.sale_rate) FROM Transactions t JOIN Currencies c ON t.currency_id = c.currency_id) * 100, 2) AS deal_share
+    FROM Transactions t
+    JOIN Currencies c ON t.currency_id = c.currency_id
+    GROUP BY c.currency_name;
+END$$
+DELIMITER ;
+
+-- Максимальный размер сделки
+DELIMITER $$
+CREATE PROCEDURE GetMaxTransaction()
+BEGIN
+    SELECT t.transaction_id, c.currency_name, MAX(t.amount * c.sale_rate) AS max_transaction
+    FROM Transactions t
+    JOIN Currencies c ON t.currency_id = c.currency_id;
+END$$
+DELIMITER ;
+
+
+------------------------------------------------------------------------------------------------------------
+
+
+
+15.	Расчет калькуляции.
+В базе данных хранятся сведения о выпуске изделий и затратах (по статьям калькуляции) на каждое изделие.
+Таблицы: статьи затрат (код статьи, название), изделия (код изделия, название), калькуляция (код калькуляции, код изделия, код статьи, сумма), план выпуска (код плана, код изделия, количество).
+
+Требуется определить: 
+- суммарную себестоимость выпуска изделий на план;
+- долю каждой статьи затрат в общей себестоимости выпуска.
+
+CREATE DATABASE IF NOT EXISTS CostCalculation;
+USE CostCalculation;
+
+-- Таблицы
+CREATE TABLE CostItems (
+    cost_item_id INT AUTO_INCREMENT PRIMARY KEY,
+    cost_item_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Calculations (
+    calculation_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT,
+    cost_item_id INT,
+    cost DECIMAL(10, 2),
+    FOREIGN KEY (product_id) REFERENCES Products(product_id),
+    FOREIGN KEY (cost_item_id) REFERENCES CostItems(cost_item_id)
+);
+
+CREATE TABLE ProductionPlans (
+    plan_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT,
+    quantity INT NOT NULL,
+    FOREIGN KEY (product_id) REFERENCES Products(product_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Суммарная себестоимость
+DELIMITER $$
+CREATE PROCEDURE GetTotalCost()
+BEGIN
+    SELECT p.product_name, 
+           SUM(c.cost * pp.quantity) AS total_cost
+    FROM Calculations c
+    JOIN ProductionPlans pp ON c.product_id = pp.product_id
+    JOIN Products p ON pp.product_id = p.product_id
+    GROUP BY p.product_name;
+END$$
+DELIMITER ;
+
+-- Доля каждой статьи затрат
+DELIMITER $$
+CREATE PROCEDURE GetCostShare()
+BEGIN
+    SELECT ci.cost_item_name,
+           ROUND(SUM(c.cost) / 
+           (SELECT SUM(c.cost) FROM Calculations c) * 100, 2) AS cost_share
+    FROM Calculations c
+    JOIN CostItems ci ON c.cost_item_id = ci.cost_item_id
+    GROUP BY ci.cost_item_name;
+END$$
+DELIMITER ;
+
+-----------------------------------------------------------------------------------------------------
+
+
+
+
+
+16.	Склад
+В базе данных содержатся сведения о грузах и размещении на стеллажах.
+Таблицы: Стеллажи (Код стеллажа, номер, количество ячеек, допустимая масса), Груз (Код груза, название), Позиция (Код груза, код стеллажа, номер ячейки, масса, дата укладки).
+Требуется:
+- определить количество свободных ячеек;
+- построить диаграмму сравнительного стеллажей заполнения (в процентах по массе).
+
+CREATE DATABASE IF NOT EXISTS Warehouse;
+USE Warehouse;
+
+-- Таблицы
+CREATE TABLE Shelves (
+    shelf_id INT AUTO_INCREMENT PRIMARY KEY,
+    shelf_number INT NOT NULL,
+    cell_count INT NOT NULL,
+    max_weight DECIMAL(10, 2) NOT NULL
+);
+
+CREATE TABLE Goods (
+    good_id INT AUTO_INCREMENT PRIMARY KEY,
+    good_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Positions (
+    position_id INT AUTO_INCREMENT PRIMARY KEY,
+    good_id INT,
+    shelf_id INT,
+    cell_number INT,
+    weight DECIMAL(10, 2),
+    placement_date DATE,
+    FOREIGN KEY (good_id) REFERENCES Goods(good_id),
+    FOREIGN KEY (shelf_id) REFERENCES Shelves(shelf_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Количество свободных ячеек
+DELIMITER $$
+CREATE PROCEDURE GetFreeCells()
+BEGIN
+    SELECT s.shelf_id, 
+           s.cell_count - COUNT(p.cell_number) AS free_cells
+    FROM Shelves s
+    LEFT JOIN Positions p ON s.shelf_id = p.shelf_id
+    GROUP BY s.shelf_id;
+END$$
+DELIMITER ;
+
+-- Заполненность стеллажей по массе
+DELIMITER $$
+CREATE PROCEDURE GetShelfOccupancy()
+BEGIN
+    SELECT s.shelf_id, 
+           ROUND(SUM(p.weight) / s.max_weight * 100, 2) AS occupancy_percentage
+    FROM Shelves s
+    LEFT JOIN Positions p ON s.shelf_id = p.shelf_id
+    GROUP BY s.shelf_id;
+END$$
+DELIMITER ;
+
+-------------------------------------------------------------------------------------------------------------
+
+
+
+
+17.	Справочник филателиста.
+В базе данных содержатся сведения о личной коллекции марок. 
+Таблицы базы данных: Жанры (код жанра, название), Страны (код страны, название), марки(код марки, код страны, код жанра, год выпуска, цена, номер альбома). 
+Требуется:
+- найти самую дорогую марку;
+- построить сравнительную диаграмму количества марок по годам выпуска.
+
+CREATE DATABASE IF NOT EXISTS StampCollection;
+USE StampCollection;
+
+-- Таблицы
+CREATE TABLE Genres (
+    genre_id INT AUTO_INCREMENT PRIMARY KEY,
+    genre_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Countries (
+    country_id INT AUTO_INCREMENT PRIMARY KEY,
+    country_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Stamps (
+    stamp_id INT AUTO_INCREMENT PRIMARY KEY,
+    country_id INT,
+    genre_id INT,
+    release_year YEAR,
+    price DECIMAL(10, 2),
+    album_number INT,
+    FOREIGN KEY (country_id) REFERENCES Countries(country_id),
+    FOREIGN KEY (genre_id) REFERENCES Genres(genre_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Самая дорогая марка
+DELIMITER $$
+CREATE PROCEDURE GetMostExpensiveStamp()
+BEGIN
+    SELECT stamp_id, price
+    FROM Stamps
+    ORDER BY price DESC
+    LIMIT 1;
+END$$
+DELIMITER ;
+
+-- Количество марок по годам выпуска
+DELIMITER $$
+CREATE PROCEDURE GetStampCountByYear()
+BEGIN
+    SELECT release_year, COUNT(stamp_id) AS stamp_count
+    FROM Stamps
+    GROUP BY release_year
+    ORDER BY release_year;
+END$$
+DELIMITER ;
+
+-----------------------------------------------------------------------------------------------------
+
+
+
+
+18.	Туристский клуб
+Туристский клуб организует одно – и многодневные пешеходные туры в группах с руководителем по разным маршрутам и разной категории сложности.
+Таблицы: Маршруты (Код маршрута, название, продолжительность, категория сложности),Руководители (Код руководителя, ФИО, телефон), Группы (Код группы, название группы, код маршрута, код руководителя, количество туристов, дата отправления).
+Требуется:
+- определить перечень групп на маршруте;
+- построить сравнительную диаграмму количества туристов по уровню сложности маршрутов.
+
+CREATE DATABASE IF NOT EXISTS TouristClub;
+USE TouristClub;
+
+-- Таблицы
+CREATE TABLE Routes (
+    route_id INT AUTO_INCREMENT PRIMARY KEY,
+    route_name VARCHAR(100) NOT NULL,
+    duration INT,
+    difficulty_category VARCHAR(50)
+);
+
+CREATE TABLE Leaders (
+    leader_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20)
+);
+
+CREATE TABLE Groups (
+    group_id INT AUTO_INCREMENT PRIMARY KEY,
+    group_name VARCHAR(100),
+    route_id INT,
+    leader_id INT,
+    tourist_count INT,
+    departure_date DATE,
+    FOREIGN KEY (route_id) REFERENCES Routes(route_id),
+    FOREIGN KEY (leader_id) REFERENCES Leaders(leader_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Перечень групп на маршруте
+DELIMITER $$
+CREATE PROCEDURE GetGroupsByRoute()
+BEGIN
+    SELECT r.route_name, g.group_name, g.tourist_count, g.departure_date
+    FROM Groups g
+    JOIN Routes r ON g.route_id = r.route_id
+    ORDER BY r.route_name;
+END$$
+DELIMITER ;
+
+-- Количество туристов по категориям сложности
+DELIMITER $$
+CREATE PROCEDURE GetTouristCountByDifficulty()
+BEGIN
+    SELECT r.difficulty_category,
+           SUM(g.tourist_count) AS total_tourists
+    FROM Groups g
+    JOIN Routes r ON g.route_id = r.route_id
+    GROUP BY r.difficulty_category;
+END$$
+DELIMITER ;
+
+------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+19.	Управляющая компания жилищно-коммунального хозяйства. 
+В базе данных содержатся сведения о проживающих гражданах, пользующихся услугами, видах услуг, тарифах, начисленных суммах.
+Таблицы: Улицы (Код улицы, название), Лицевые счета (Код счета, номер счета, Код улицы, дом, корпус, квартира, ФИО), Услуги (Код услуги, название, тариф), Начисления (Код начисления, код счета, код услуги, количество).
+Требуется:
+- отпечатать список лицевых счетов, упорядоченный по адресу:
+- отпечатать извещение на оплату по указанному счету.
+
+CREATE DATABASE IF NOT EXISTS UtilityCompany;
+USE UtilityCompany;
+
+-- Таблицы
+CREATE TABLE Streets (
+    street_id INT AUTO_INCREMENT PRIMARY KEY,
+    street_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Accounts (
+    account_id INT AUTO_INCREMENT PRIMARY KEY,
+    account_number VARCHAR(50) NOT NULL,
+    street_id INT,
+    house_number VARCHAR(10),
+    building VARCHAR(10),
+    apartment_number VARCHAR(10),
+    full_name VARCHAR(100),
+    FOREIGN KEY (street_id) REFERENCES Streets(street_id)
+);
+
+CREATE TABLE Services (
+    service_id INT AUTO_INCREMENT PRIMARY KEY,
+    service_name VARCHAR(100) NOT NULL,
+    tariff DECIMAL(10, 2)
+);
+
+CREATE TABLE Charges (
+    charge_id INT AUTO_INCREMENT PRIMARY KEY,
+    account_id INT,
+    service_id INT,
+    quantity DECIMAL(10, 2),
+    FOREIGN KEY (account_id) REFERENCES Accounts(account_id),
+    FOREIGN KEY (service_id) REFERENCES Services(service_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Список лицевых счетов, упорядоченный по адресу
+DELIMITER $$
+CREATE PROCEDURE GetAccountsByAddress()
+BEGIN
+    SELECT a.account_number, a.full_name, s.street_name, a.house_number, a.building, a.apartment_number
+    FROM Accounts a
+    JOIN Streets s ON a.street_id = s.street_id
+    ORDER BY s.street_name, a.house_number, a.building, a.apartment_number;
+END$$
+DELIMITER ;
+
+-- Извещение на оплату по указанному счету
+DELIMITER $$
+CREATE PROCEDURE GetPaymentNotification(IN account_number VARCHAR(50))
+BEGIN
+    SELECT a.full_name, s.service_name, ch.quantity, 
+           (ch.quantity * s.tariff) AS total
+    FROM Charges ch
+    JOIN Accounts a ON ch.account_id = a.account_id
+    JOIN Services s ON ch.service_id = s.service_id
+    WHERE a.account_number = account_number;
+END$$
+DELIMITER ;
+
+-------------------------------------------------------------------------------------------------------
+
+
+
+20.	Частная клиника.
+Врачи частной клиники ведут прием пациентов по определенному расписанию. В результате приема ставится диагноз. 
+Таблицы: Врачи (Код врача, ФИО, специализация), Пациенты (Код пациента, ФИО, адрес), Диагнозы (Код диагноза, название, лечение), Приемы (Код приема, код врача, код пациента, дата, время, код диагноза).
+Требуется: 
+- определить пациентов, побывавших у врача более одного раза;
+- относительную загрузку врачей по специализациям.
+
+CREATE DATABASE IF NOT EXISTS PrivateClinic;
+USE PrivateClinic;
+
+-- Таблицы
+CREATE TABLE Doctors (
+    doctor_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    specialization VARCHAR(100)
+);
+
+CREATE TABLE Patients (
+    patient_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    address VARCHAR(200)
+);
+
+CREATE TABLE Diagnoses (
+    diagnosis_id INT AUTO_INCREMENT PRIMARY KEY,
+    diagnosis_name VARCHAR(100),
+    treatment TEXT
+);
+
+CREATE TABLE Appointments (
+    appointment_id INT AUTO_INCREMENT PRIMARY KEY,
+    doctor_id INT,
+    patient_id INT,
+    appointment_date DATE,
+    appointment_time TIME,
+    diagnosis_id INT,
+    FOREIGN KEY (doctor_id) REFERENCES Doctors(doctor_id),
+    FOREIGN KEY (patient_id) REFERENCES Patients(patient_id),
+    FOREIGN KEY (diagnosis_id) REFERENCES Diagnoses(diagnosis_id)
+);
+Процедуры:
+sql
+Копировать код
+-- Пациенты, посетившие врача более одного раза
+DELIMITER $$
+CREATE PROCEDURE GetFrequentPatients()
+BEGIN
+    SELECT p.full_name, d.full_name AS doctor_name, COUNT(a.appointment_id) AS visit_count
+    FROM Appointments a
+    JOIN Patients p ON a.patient_id = p.patient_id
+    JOIN Doctors d ON a.doctor_id = d.doctor_id
+    GROUP BY p.patient_id, d.doctor_id
+    HAVING visit_count > 1;
+END$$
+DELIMITER ;
+
+-- Относительная загрузка врачей по специализациям
+DELIMITER $$
+CREATE PROCEDURE GetDoctorLoadBySpecialization()
+BEGIN
+    SELECT d.specialization,
+           COUNT(a.appointment_id) AS total_appointments,
+           ROUND(COUNT(a.appointment_id) / (SELECT COUNT(*) FROM Appointments) * 100, 2) AS load_percentage
+    FROM Appointments a
+    JOIN Doctors d ON a.doctor_id = d.doctor_id
+    GROUP BY d.specialization;
+END$$
+DELIMITER ;
+
