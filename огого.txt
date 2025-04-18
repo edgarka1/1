@@ -1,0 +1,251 @@
+# Подключение к БД
+
+import pymysql
+
+
+def db_con():
+    return pymysql.connect(
+        host= 'localhost',
+        user= 'root',
+        password='',
+        database='proba2'
+    )
+
+
+# Регистрация с добавлением данных в бд
+
+
+self.b_back.clicked.connect(MainWindow.close)
+
+
+    def get_reg(self):
+        login = self.l_login.text()
+        password = self.l_password.text()
+        email = self.l_email.text()
+        f = self.l_fam.text()
+        i = self.l_im.text()
+        o = self.l_otch.text()
+
+        con = db_con()
+        cur = con.cursor()
+        cur.execute("""insert into users(login, password, email, lastname, firstName, patronimyc, role)
+        values (%s,%s,%s,%s,%s,%s, 2)""", (login, password, email, f, i, o))
+        con.commit()
+        con.close()
+
+
+# Авторизация с выборкой данных из бд
+
+self.b_zareg.clicked.connect(self.get_auth)
+
+
+    def get_auth(self):
+        login = self.l_login.text()
+        password = self.l_password.text()
+
+        con = db_con()
+        cur = con.cursor()
+        sql = "select role from users where login = %s and password = %s"
+        cur.execute(sql, (login, password))
+        result = cur.fetchall()
+        con.close()
+        if result:
+            id_pos = result[0][0]
+            if id_pos == 1:
+                self.QmainWin = QtWidgets.QMainWindow()
+                self.QmainWin_ui = Ui_MainWindoww()
+                self.QmainWin_ui.setupUi(self.QmainWin)
+                self.QmainWin.show()
+                MainWindow.close()
+            else:
+                self.QmainWin = QtWidgets.QMainWindow()
+                self.QmainWin_ui = Ui_MainWindowww()
+                self.QmainWin_ui.setupUi(self.QmainWin)
+                self.QmainWin.show()
+                MainWindow.close()
+
+
+
+
+# Открытие другого окна
+
+self.QmainWin = QtWidgets.QMainWindow()
+                self.QmainWin_ui = Ui_MainWindoww()
+                self.QmainWin_ui.setupUi(self.QmainWin)
+                self.QmainWin.show()
+
+
+
+
+# Добавление данных в бд на примере заявки 
+
+
+self.pushButton.clicked.connect(self.zakaz)
+
+
+    def zakaz(self):
+        fio = self.l_login.text()
+        opis = self.l_login_2.text()
+        count_w = self.comboBox.currentText()
+        count_s = self.comboBox_2.currentText()
+        material = self.comboBox_3.currentText()
+        type = self.comboBox_4.currentText()
+
+        con = db_con()
+        cur = con.cursor()
+        cur.execute("insert into cart (fio, w_count, material, description, s_count, type, date) values(%s,%s,%s,%s,%s,%s,NOW())", (fio, count_w, material, opis,  count_s,  type))
+        con.commit()
+        con.close()
+        MainWindow.close()
+        QtWidgets.QMessageBox.information(None, "Успех", 'Заказ оформлен! С вами свяжутся.')
+
+
+# Вывод данных из бд в лейбл 
+
+self.pushButton.clicked.connect(self.zakazi)
+
+
+    def zakazi(self):
+        con = db_con()
+        cur = con.cursor()
+        cur.execute("select * from cart")
+        data = cur.fetchall()
+        f_data = '\n'.join(str(row) for row in data)
+        self.label_2.setText(f_data)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#manager.py
+
+
+from PyQt6 import QtCore, QtGui, QtWidgets
+from enter import db_connect
+
+class Ui_Form(object):
+    def setupUi(self, Form):
+        Form.setObjectName("Form")
+        Form.resize(400, 344)
+        self.label = QtWidgets.QLabel(parent=Form)
+        self.label.setGeometry(QtCore.QRect(100, 30, 171, 31))
+        self.label.setObjectName("label")
+        self.tableView = QtWidgets.QTableView(parent=Form)
+        self.tableView.setGeometry(QtCore.QRect(30, 70, 341, 192))
+        self.tableView.setObjectName("tableView")
+        self.pushButton = QtWidgets.QPushButton(parent=Form)
+        self.pushButton.setGeometry(QtCore.QRect(150, 290, 81, 31))
+        self.pushButton.setObjectName("pushButton")
+
+        self.retranslateUi(Form)
+        QtCore.QMetaObject.connectSlotsByName(Form)
+
+        self.load_data()
+
+        self.pushButton.clicked.connect(self.open_enter)
+        self.pushButton.clicked.connect(Form.close)
+
+    def load_data(self):
+        conn = db_connect()
+        cursor = conn.cursor()
+        cursor.execute("select * from orders")
+        rows = cursor.fetchall()
+
+        model = QtGui.QStandardItemModel()
+        if cursor.description:
+            headers = [col[0] for col in cursor.description]
+            model.setHorizontalHeaderLabels(headers)
+
+        for row in rows:
+            model.appendRow([QtGui.QStandardItem(str(item)) for item in row])
+        self.tableView.setModel(model)
+
+        conn.close()
+
+    def open_enter(self):
+        from enter import Ui_Form
+        self.win = QtWidgets.QMainWindow()
+        self.ui = Ui_Form()
+        self.ui.setupUi(self.win)
+        self.win.show()
+
+    def retranslateUi(self, Form):
+        _translate = QtCore.QCoreApplication.translate
+        Form.setWindowTitle(_translate("Form", "Form"))
+        self.label.setText(_translate("Form", "ЗАКАЗЫ"))
+        self.pushButton.setText(_translate("Form", "НАЗАД"))
+
+
+if __name__ == "__main__":
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    Form = QtWidgets.QWidget()
+    ui = Ui_Form()
+    ui.setupUi(Form)
+    Form.show()
+    sys.exit(app.exec())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from PyQt6 import QtCore, QtGui, QtWidgets
+from enter import db_connect
+
+class Ui_Form(object):
+    def setupUi(self, Form):
+        # ... (ваш существующий код до кнопок) ...
+        
+        # Добавляем кнопку удаления (НОВЫЙ КОД)
+        self.delButton = QtWidgets.QPushButton("Удалить", parent=Form)
+        self.delButton.setGeometry(QtCore.QRect(250, 290, 81, 31))
+        self.delButton.clicked.connect(self.delete_row)  # Подключаем удаление
+        
+        # ... (ваш существующий код после кнопок) ...
+        self.tableView.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+
+    # НОВЫЙ МЕТОД ДЛЯ УДАЛЕНИЯ (весь новый функционал здесь)
+    def delete_row(self):
+        selected = self.tableView.selectionModel().selectedRows()
+        if selected:
+            order_id = self.tableView.model().index(selected[0].row(), 0).data()
+            conn = db_connect()
+            conn.cursor().execute("DELETE FROM orders WHERE id = %s", (order_id,))
+            conn.commit()
+            conn.close()
+            self.load_data()  # Обновляем таблицу
+
+    # ... (остальной ваш код без изменений) ...
