@@ -1,0 +1,470 @@
+import sys
+import pymysql
+import openpyxl
+from PyQt6 import QtWidgets, QtGui, QtCore
+from datetime import datetime
+
+# --- БАЗА ДАННЫХ ---
+def connect_db():
+    return pymysql.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database="demo_system",
+        charset="utf8mb4",
+        cursorclass=pymysql.cursors.Cursor
+    )
+
+def log_action(user_id, action):
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO logs (user_id, action) VALUES (%s, %s)", (user_id, action))
+    conn.commit()
+    conn.close()
+
+# --- СТИЛИ ---
+STYLE = """
+QWidget { background-color: #eaf6fb; font-size: 14px; }
+QLineEdit, QTextEdit, QComboBox, QDateEdit {
+    border: 1px solid #a0cce5; border-radius: 6px; padding: 5px; background: white;
+}
+QPushButton {
+    background-color: #a0d3f5; border: none; border-radius: 8px; padding: 6px;
+}
+QPushButton:hover { background-color: #82c6ef; }
+QTableWidget { background-color: white; border: 1px solid #a0cce5; }
+"""
+
+# --- ОКНО ВХОДА ---
+class LoginWindow(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Вход")
+        self.setGeometry(100, 100, 300, 200)
+        layout = QtWidgets.QVBoxLayout()
+
+        self.login_input = QtWidgets.QLineEdit()
+        self.login_input.setPlaceholderText("Логин")
+        layout.addWidget(self.login_input)
+
+        self.password_input = QtWidgets.QLineEdit()
+        self.password_input.setPlaceholderText("Пароль")
+        self.password_input.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
+        layout.addWidget(self.password_input)
+
+        self.login_btn = QtWidgets.QPushButton("Войти")
+        self.login_btn.clicked.connect(self.login)
+        layout.addWidget(self.login_btn)
+
+        self.register_btn = QtWidgets.QPushButton("Регистрация")
+        self.register_btn.clicked.connect(self.open_register)
+        layout.addWidget(self.register_btn)
+
+        self.setLayout(layout)
+
+    def login(self):
+        login = self.login_input.text().strip()
+        password = self.password_input.text().strip()
+
+        if not login or not password:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Введите логин и пароль.")
+            return
+
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE login=%s AND password=%s", (login, password))
+        user = cursor.fetchone()
+        conn.close()
+
+        if user:
+            role = user[4]
+            log_action(user[0], "Авторизация")
+            if role == "user":
+                self.user_window = UserWindow(user)
+                self.user_window.show()
+            else:
+                self.manager_window = ManagerWindow(user)
+                self.manager_window.show()
+            self.close()
+        else:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Неверные логин или пароль.")
+
+    def open_register(self):
+        self.register_window = RegisterWindow()
+        self.register_window.show()
+
+# --- РЕГИСТРАЦИЯ ---
+class RegisterWindow(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Регистрация")
+        self.setGeometry(100, 100, 300, 300)
+        layout = QtWidgets.QVBoxLayout()
+
+        self.name_input = QtWidgets.QLineEdit()
+        self.name_input.setPlaceholderText("Имя")
+        layout.addWidget(self.name_input)
+
+        self.login_input = QtWidgets.QLineEdit()
+        self.login_input.setPlaceholderText("Логин")
+        layout.addWidget(self.login_input)
+
+        self.password_input = QtWidgets.QLineEdit()
+        self.password_input.setPlaceholderText("Пароль")
+        layout.addWidget(self.password_input)
+
+        self.role_combo = QtWidgets.QComboBox()
+        self.role_combo.addItems(["user", "manager"])
+        layout.addWidget(self.role_combo)
+
+        self.register_btn = QtWidgets.QPushButton("Зарегистрироваться")
+        self.register_btn.clicked.connect(self.register)
+        layout.addWidget(self.register_btn)
+
+        self.setLayout(layout)
+
+    def register(self):
+        name = self.name_input.text().strip()
+        login = self.login_input.text().strip()
+        password = self.password_input.text().strip()
+        role = self.role_combo.currentText()
+
+        if not name or not login or not password:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Заполните все поля.")
+            return
+
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE login=%s", (login,))
+        if cursor.fetchone():
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Логин уже занят.")
+            conn.close()
+            return
+
+        cursor.execute("INSERT INTO users (name, login, password, role) VALUES (%s, %s, %s, %s)",
+                       (name, login, password, role))
+        conn.commit()
+        conn.close()
+        QtWidgets.QMessageBox.information(self, "Успех", "Регистрация завершена")
+        self.close()
+
+# --- ОКНО ПОЛЬЗОВАТЕЛЯ ---
+class UserWindow(QtWidgets.QWidget):
+    def __init__(self, user):
+        super().__init__()
+        self.setWindowTitle("Пользователь")
+        self.setGeometry(100, 100, 400, 350)
+        self.user = user
+        self.user_id = user[0]
+
+        layout = QtWidgets.QVBoxLayout()
+        self.title_combo = QtWidgets.QComboBox()
+        layout.addWidget(self.title_combo)
+        self.load_topics()
+
+        self.desc_input = QtWidgets.QTextEdit()
+        self.desc_input.setPlaceholderText("Описание")
+        layout.addWidget(self.desc_input)
+
+        self.send_btn = QtWidgets.QPushButton("Отправить заявку")
+        self.send_btn.clicked.connect(self.send_request)
+        layout.addWidget(self.send_btn)
+
+        self.view_btn = QtWidgets.QPushButton("Посмотреть мои заявки")
+        self.view_btn.clicked.connect(self.view_requests)
+        layout.addWidget(self.view_btn)
+
+        self.back_btn = QtWidgets.QPushButton("Назад")
+        self.back_btn.clicked.connect(self.go_back)
+        layout.addWidget(self.back_btn)
+
+        self.setLayout(layout)
+
+    def load_topics(self):
+        try:
+            conn = connect_db()
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM topics")
+            topics = cursor.fetchall()
+            conn.close()
+            for topic in topics:
+                self.title_combo.addItem(topic[0])
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Ошибка", str(e))
+
+    def generate_doc_number(self):
+        today = datetime.now().strftime("%Y%m%d")
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM requests WHERE DATE(created_at)=CURDATE()")
+        count = cursor.fetchone()[0] + 1
+        conn.close()
+        return f"DOC-{today}-{count:04d}"
+
+    def send_request(self):
+        title = self.title_combo.currentText()
+        desc = self.desc_input.toPlainText()
+        doc_num = self.generate_doc_number()
+
+        try:
+            conn = connect_db()
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO requests (user_id, title, description, status, created_at, document_number)
+                VALUES (%s, %s, %s, 'Новая', NOW(), %s)
+            """, (self.user_id, title, desc, doc_num))
+            conn.commit()
+            conn.close()
+            log_action(self.user_id, f"Заявка: {title} ({doc_num})")
+            QtWidgets.QMessageBox.information(self, "Успех", f"Заявка отправлена\nДокумент: {doc_num}")
+            self.desc_input.clear()
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Ошибка", str(e))
+
+    def view_requests(self):
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Мои заявки")
+        dialog.resize(600, 400)
+        layout = QtWidgets.QVBoxLayout()
+
+        table = QtWidgets.QTableWidget()
+        layout.addWidget(table)
+
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT title, description, status, created_at, document_number
+            FROM requests WHERE user_id = %s ORDER BY created_at DESC
+        """, (self.user_id,))
+        data = cursor.fetchall()
+        conn.close()
+
+        table.setRowCount(len(data))
+        table.setColumnCount(5)
+        table.setHorizontalHeaderLabels(["Тема", "Описание", "Статус", "Дата", "Документ №"])
+        for row_idx, row_data in enumerate(data):
+            for col_idx, value in enumerate(row_data):
+                table.setItem(row_idx, col_idx, QtWidgets.QTableWidgetItem(str(value)))
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def go_back(self):
+        self.login = LoginWindow()
+        self.login.show()
+        self.close()
+
+# --- ОКНО МЕНЕДЖЕРА ---
+class ManagerWindow(QtWidgets.QWidget):
+    def __init__(self, user):
+        super().__init__()
+        self.setWindowTitle("Менеджер")
+        self.setGeometry(100, 100, 1100, 650)
+        self.user = user
+        self.user_id = user[0]
+
+        layout = QtWidgets.QVBoxLayout()
+        filter_layout = QtWidgets.QHBoxLayout()
+
+        # Элементы фильтрации
+        self.start_date = QtWidgets.QDateEdit(calendarPopup=True)
+        self.end_date = QtWidgets.QDateEdit(calendarPopup=True)
+        self.start_date.setDate(QtCore.QDate.currentDate().addMonths(-1))
+        self.end_date.setDate(QtCore.QDate.currentDate())
+
+        self.status_filter = QtWidgets.QComboBox()
+        self.status_filter.addItems(["Все", "Новая", "В обработке", "Завершена"])
+
+        self.search_input = QtWidgets.QLineEdit()
+        self.search_input.setPlaceholderText("Поиск по теме или пользователю")
+
+        self.filter_btn = QtWidgets.QPushButton("Фильтровать")
+        self.filter_btn.clicked.connect(self.load_data)
+
+        self.export_btn = QtWidgets.QPushButton("Экспорт в Excel")
+        self.export_btn.clicked.connect(self.export_excel)
+
+        self.back_btn = QtWidgets.QPushButton("Назад")
+        self.back_btn.clicked.connect(self.go_back)
+
+        for widget in [self.start_date, self.end_date, self.status_filter,
+                       self.search_input, self.filter_btn, self.export_btn, self.back_btn]:
+            filter_layout.addWidget(widget)
+
+        layout.addLayout(filter_layout)
+
+        # Таблица
+        self.table = QtWidgets.QTableWidget()
+        layout.addWidget(self.table)
+
+        # Кнопки управления заявками
+        btn_layout = QtWidgets.QHBoxLayout()
+        self.btn_add = QtWidgets.QPushButton("Добавить заявку")
+        self.btn_add.clicked.connect(self.add_request)
+
+        self.btn_edit = QtWidgets.QPushButton("Редактировать")
+        self.btn_edit.clicked.connect(self.edit_request)
+
+        self.btn_delete = QtWidgets.QPushButton("Удалить")
+        self.btn_delete.clicked.connect(self.delete_request)
+
+        btn_layout.addWidget(self.btn_add)
+        btn_layout.addWidget(self.btn_edit)
+        btn_layout.addWidget(self.btn_delete)
+
+        # ВАЖНО: добавляем кнопки в общий макет
+        layout.addLayout(btn_layout)
+
+        self.setLayout(layout)
+        self.load_data()
+
+    def load_data(self):
+        start = self.start_date.date().toString("yyyy-MM-dd")
+        end = self.end_date.date().toString("yyyy-MM-dd")
+        status = self.status_filter.currentText().strip()
+        search = self.search_input.text().strip()
+
+        query = """
+            SELECT r.id, u.name, r.title, r.status, r.created_at, r.document_number
+            FROM requests r
+            JOIN users u ON r.user_id = u.id
+            WHERE DATE(r.created_at) BETWEEN %s AND %s
+        """
+        params = [start, end]
+
+        if status != "Все":
+            query += " AND r.status = %s"
+            params.append(status)
+
+        if search:
+            query += " AND (r.title LIKE %s OR u.name LIKE %s)"
+            params.extend([f"%{search}%", f"%{search}%"])
+
+        query += " ORDER BY r.created_at DESC"
+
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        data = cursor.fetchall()
+        conn.close()
+
+        self.table.setRowCount(len(data))
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(["ID", "Пользователь", "Тема", "Статус", "Дата", "Документ №"])
+
+        for row_idx, row_data in enumerate(data):
+            for col_idx, col_data in enumerate(row_data):
+                self.table.setItem(row_idx, col_idx, QtWidgets.QTableWidgetItem(str(col_data)))
+
+    def get_selected_request_id(self):
+        row = self.table.currentRow()
+        return self.table.item(row, 0).text() if row >= 0 else None
+
+    def add_request(self):
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Добавить заявку")
+        layout = QtWidgets.QVBoxLayout()
+
+        title = QtWidgets.QLineEdit()
+        desc = QtWidgets.QTextEdit()
+
+        submit = QtWidgets.QPushButton("Создать")
+        submit.clicked.connect(lambda: self.create_request(title.text(), desc.toPlainText(), dialog))
+
+        layout.addWidget(title)
+        layout.addWidget(desc)
+        layout.addWidget(submit)
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def create_request(self, title, desc, dialog):
+        doc_num = f"DOC-{datetime.now().strftime('%Y%m%d')}-{datetime.now().strftime('%H%M%S')}"
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO requests (user_id, title, description, status, created_at, document_number) VALUES (%s, %s, %s, 'Новая', NOW(), %s)",
+                       (self.user_id, title, desc, doc_num))
+        conn.commit()
+        conn.close()
+        log_action(self.user_id, f"Добавил заявку: {title} ({doc_num})")
+        self.load_data()
+        dialog.accept()
+
+    def edit_request(self):
+        request_id = self.get_selected_request_id()
+        if not request_id:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Выберите заявку")
+            return
+
+        title = self.table.item(self.table.currentRow(), 2).text()
+        status = self.table.item(self.table.currentRow(), 3).text()
+
+        dialog = QtWidgets.QDialog(self)
+        layout = QtWidgets.QVBoxLayout()
+
+        title_input = QtWidgets.QLineEdit(title)
+        status_combo = QtWidgets.QComboBox()
+        status_combo.addItems(["Новая", "В обработке", "Завершена"])
+        status_combo.setCurrentText(status)
+
+        save = QtWidgets.QPushButton("Сохранить")
+        save.clicked.connect(lambda: self.save_request(request_id, title_input.text(), status_combo.currentText(), dialog))
+
+        layout.addWidget(title_input)
+        layout.addWidget(status_combo)
+        layout.addWidget(save)
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def save_request(self, request_id, title, status, dialog):
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE requests SET title=%s, status=%s WHERE id=%s", (title, status, request_id))
+        conn.commit()
+        conn.close()
+        log_action(self.user_id, f"Обновил заявку #{request_id}")
+        self.load_data()
+        dialog.accept()
+
+    def delete_request(self):
+        request_id = self.get_selected_request_id()
+        if not request_id:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Выберите заявку")
+            return
+        confirm = QtWidgets.QMessageBox.question(self, "Удаление", "Удалить заявку?",
+                                                 QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+        if confirm == QtWidgets.QMessageBox.StandardButton.Yes:
+            conn = connect_db()
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM requests WHERE id=%s", (request_id,))
+            conn.commit()
+            conn.close()
+            log_action(self.user_id, f"Удалил заявку #{request_id}")
+            self.load_data()
+
+    def export_excel(self):
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.append(["ID", "Пользователь", "Тема", "Статус", "Дата", "Документ №"])
+
+        for row in range(self.table.rowCount()):
+            values = [self.table.item(row, col).text() for col in range(self.table.columnCount())]
+            sheet.append(values)
+
+        filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        workbook.save(filename)
+        log_action(self.user_id, f"Экспортировал в Excel: {filename}")
+        QtWidgets.QMessageBox.information(self, "Готово", f"Сохранено в файл: {filename}")
+
+    def go_back(self):
+        self.login = LoginWindow()
+        self.login.show()
+        self.close()
+
+
+# --- ЗАПУСК ---
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    app.setStyleSheet(STYLE)
+    window = LoginWindow()
+    window.show()
+    sys.exit(app.exec())
