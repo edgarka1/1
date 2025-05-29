@@ -1,0 +1,172 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	#Back
+    def back(self):
+        from project import Ui_MainWindow
+        self.MW = QtWidgets.QMainWindow()
+        self.MW_ui = Ui_MainWindow()
+        self.MW_ui.setupUi(self.MW)
+        self.MW.show()
+        self.centralwidget.window().close()
+
+
+
+
+
+
+	#Vivod v TableView
+	self.open_list()
+
+
+    def open_list(self):
+        con = db_con()
+        cur = con.cursor()
+        cur.execute("SELECT application.id_application, products.name_prod, partners.name, application.date, application.count, status_application.name_status FROM application left JOIN products on application.id_product_app = products.id_product left JOIN partners on application.id_partner_app = partners.id_partner LEFT join status_application on application.id_status_app = status_application.id_status_application")
+        rows = cur.fetchall()
+
+        model = QtGui.QStandardItemModel()
+        if cur.description:
+            headers = [col[0] for col in cur.description]
+            model.setHorizontalHeaderLabels(headers)
+        for row in rows:
+            model.appendRow([QtGui.QStandardItem(str(item)) for item in row])
+            self.tableView.setModel(model)
+
+
+
+
+
+
+	#Dobavlenie
+    def add_m(self):
+        name = self.lineEdit.text()
+        type_id = self.comboBox.currentData()
+        min_count = self.lineEdit_2.text()
+        warehouse_count = self.lineEdit_3.text()
+        price = self.lineEdit_4.text()
+        unit = self.lineEdit_5.text()
+
+
+        con = db_con()
+        cur = con.cursor()
+        cur.execute("insert into materials(type_id, name, min_count, warehouse_count, price, unit) values(%s,%s,%s,%s,%s,%s)",
+                    (type_id, name, min_count, warehouse_count, price, unit))
+        con.commit()
+        con.close()
+        MainWindow.close()
+
+
+
+
+	#comboBox
+	con = db_con()
+        cur = con.cursor()
+        cur.execute('select id, name from material_type')
+        for id, name in cur.fetchall():
+            self.comboBox.addItem(str(name), id)
+        if con:
+            con.close()
+
+
+
+
+
+	#delete
+	self.pushButton_4.clicked.connect(self.delete)
+
+    def delete(self):
+        try:
+            sellect = self.tableView.selectionModel().selectedRows()
+            if not sellect:
+                QtWidgets.QMessageBox.warning(None, "Внимание!", "Выберите запись для редактирования!")
+                return
+            row = sellect[0].row()
+            id_material = int(self.tableView.model().item(row,0).text())
+
+            con = db_con()
+            cur = con.cursor()
+            cur.execute("DELETE FROM application WHERE id_application=%s", (id_material,))
+            con.commit()
+            con.close()
+            QtWidgets.QMessageBox.information(None, "Успех", "Строка удалена!")
+            self.open_list()
+        except:
+            QtWidgets.QMessageBox.critical(None, "Успех", "Ошибка Удаления!")
+
